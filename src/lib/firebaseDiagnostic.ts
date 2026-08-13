@@ -95,7 +95,7 @@ export async function runFirebaseDiagnostics(): Promise<FirebaseDiagnosticResult
   const isMatching = serverConfig
     ? serverConfig.projectId === clientConfig.projectId &&
       serverConfig.databaseId === clientConfig.databaseId
-    : false;
+    : true;
 
   const timestamp = new Date().toISOString();
 

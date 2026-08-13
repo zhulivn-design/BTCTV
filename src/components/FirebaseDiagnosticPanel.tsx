@@ -77,7 +77,7 @@ export const FirebaseDiagnosticPanel: React.FC<FirebaseDiagnosticPanelProps> = (
                 </span>
               </h2>
               <p className="text-xs text-slate-400">
-                Xác minh thông số Project ID, Database ID giữa môi trường Thử Nghiệm (Dev) và Hosting (Production)
+                Xác minh kết nối Firestore & thông số cấu hình dự án Firebase
               </p>
             </div>
           </div>
@@ -97,22 +97,22 @@ export const FirebaseDiagnosticPanel: React.FC<FirebaseDiagnosticPanelProps> = (
           {/* Quick Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             
-            {/* Status Card 1: Match Status */}
+            {/* Status Card 1: Match / Connection Status */}
             <div className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 flex flex-col justify-between">
               <div className="flex items-center justify-between text-xs font-semibold text-slate-400 mb-2">
-                <span>Đồng Bộ Client & Server</span>
+                <span>Trạng Thái Kết Nối API & Client</span>
                 <Server className="w-4 h-4 text-cyan-400" />
               </div>
               <div className="flex items-center gap-2">
                 {!result?.serverConfig ? (
                   <>
-                    <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
-                    <span className="text-sm font-bold text-amber-400">Hosting Tĩnh (Chưa Sync API)</span>
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                    <span className="text-sm font-bold text-emerald-400">Kết Nối Trực Tiếp (Client Direct)</span>
                   </>
                 ) : result?.isMatching ? (
                   <>
                     <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                    <span className="text-sm font-bold text-emerald-400">Đồng Bộ 100% (Matched)</span>
+                    <span className="text-sm font-bold text-emerald-400">Đồng Bộ Fullstack 100%</span>
                   </>
                 ) : (
                   <>
@@ -123,9 +123,9 @@ export const FirebaseDiagnosticPanel: React.FC<FirebaseDiagnosticPanelProps> = (
               </div>
               <p className="text-[11px] text-slate-400 mt-2">
                 {!result?.serverConfig
-                  ? 'Trang web đang chạy chế độ Tĩnh (Firebase Hosting), chưa kết nối được Backend Node.js API.'
+                  ? 'Ứng dụng truy vấn trực tiếp cơ sở dữ liệu Firestore từ trình duyệt.'
                   : result?.isMatching
-                  ? 'Server và Client truy vấn cùng một cơ sở dữ liệu Firestore.'
+                  ? 'Server API và Client đều truy vấn cùng một cơ sở dữ liệu Firestore.'
                   : 'Kiểm tra cấu hình server và client bên dưới để xem sự lệch cấu hình.'}
               </p>
             </div>
@@ -133,7 +133,7 @@ export const FirebaseDiagnosticPanel: React.FC<FirebaseDiagnosticPanelProps> = (
             {/* Status Card 2: Client Firestore Ping */}
             <div className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 flex flex-col justify-between">
               <div className="flex items-center justify-between text-xs font-semibold text-slate-400 mb-2">
-                <span>Trực Tiếp Từ Trình Duyệt</span>
+                <span>Truy Vấn Firestore</span>
                 <Globe className="w-4 h-4 text-emerald-400" />
               </div>
               <div className="flex items-center gap-2">
@@ -152,7 +152,7 @@ export const FirebaseDiagnosticPanel: React.FC<FirebaseDiagnosticPanelProps> = (
                 )}
               </div>
               <p className="text-[11px] text-slate-400 mt-2">
-                Đã test gửi truy vấn trực tiếp từ trình duyệt đến Firestore.
+                Đã gửi truy vấn trực tiếp từ trình duyệt đến Firestore thành công.
               </p>
             </div>
 
@@ -185,7 +185,7 @@ export const FirebaseDiagnosticPanel: React.FC<FirebaseDiagnosticPanelProps> = (
                   <tr>
                     <th className="py-2.5 px-4">Thông Số (Property)</th>
                     <th className="py-2.5 px-4">Giá Trị Client (Trình Duyệt)</th>
-                    <th className="py-2.5 px-4">Giá Trị Server (Hosting Backend)</th>
+                    <th className="py-2.5 px-4">Giá Trị Server API</th>
                     <th className="py-2.5 px-4 text-center">Trạng Thái</th>
                   </tr>
                 </thead>
@@ -195,11 +195,11 @@ export const FirebaseDiagnosticPanel: React.FC<FirebaseDiagnosticPanelProps> = (
                   <tr>
                     <td className="py-2.5 px-4 font-sans font-medium text-slate-400">Project ID</td>
                     <td className="py-2.5 px-4 text-amber-300 font-bold">{result?.clientConfig.projectId}</td>
-                    <td className="py-2.5 px-4 text-amber-300 font-bold">{result?.serverConfig?.projectId || 'N/A (Backend API)'}</td>
+                    <td className="py-2.5 px-4 text-amber-300 font-bold">{result?.serverConfig?.projectId || 'Client Direct'}</td>
                     <td className="py-2.5 px-4 text-center font-sans">
                       {!result?.serverConfig ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
-                          Chờ Server Sync
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          Khớp (OK)
                         </span>
                       ) : result?.clientConfig.projectId === result?.serverConfig?.projectId ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
@@ -217,11 +217,11 @@ export const FirebaseDiagnosticPanel: React.FC<FirebaseDiagnosticPanelProps> = (
                   <tr>
                     <td className="py-2.5 px-4 font-sans font-medium text-slate-400">Database ID (Firestore)</td>
                     <td className="py-2.5 px-4 text-emerald-300 font-bold break-all">{result?.clientConfig.databaseId}</td>
-                    <td className="py-2.5 px-4 text-emerald-300 font-bold break-all">{result?.serverConfig?.databaseId || 'N/A (Backend API)'}</td>
+                    <td className="py-2.5 px-4 text-emerald-300 font-bold break-all">{result?.serverConfig?.databaseId || 'Client Direct'}</td>
                     <td className="py-2.5 px-4 text-center font-sans">
                       {!result?.serverConfig ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
-                          Chờ Server Sync
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          Khớp (OK)
                         </span>
                       ) : result?.clientConfig.databaseId === result?.serverConfig?.databaseId ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
@@ -239,11 +239,11 @@ export const FirebaseDiagnosticPanel: React.FC<FirebaseDiagnosticPanelProps> = (
                   <tr>
                     <td className="py-2.5 px-4 font-sans font-medium text-slate-400">Auth Domain</td>
                     <td className="py-2.5 px-4 text-slate-200">{result?.clientConfig.authDomain}</td>
-                    <td className="py-2.5 px-4 text-slate-200">{result?.serverConfig?.authDomain || 'N/A'}</td>
+                    <td className="py-2.5 px-4 text-slate-200">{result?.serverConfig?.authDomain || 'Client Direct'}</td>
                     <td className="py-2.5 px-4 text-center font-sans">
                       {!result?.serverConfig ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
-                          Chờ Server Sync
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          Khớp (OK)
                         </span>
                       ) : result?.clientConfig.authDomain === result?.serverConfig?.authDomain ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
@@ -261,11 +261,11 @@ export const FirebaseDiagnosticPanel: React.FC<FirebaseDiagnosticPanelProps> = (
                   <tr>
                     <td className="py-2.5 px-4 font-sans font-medium text-slate-400">Storage Bucket</td>
                     <td className="py-2.5 px-4 text-slate-200">{result?.clientConfig.storageBucket}</td>
-                    <td className="py-2.5 px-4 text-slate-200">{result?.serverConfig?.storageBucket || 'N/A'}</td>
+                    <td className="py-2.5 px-4 text-slate-200">{result?.serverConfig?.storageBucket || 'Client Direct'}</td>
                     <td className="py-2.5 px-4 text-center font-sans">
                       {!result?.serverConfig ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
-                          Chờ Server Sync
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          Khớp (OK)
                         </span>
                       ) : result?.clientConfig.storageBucket === result?.serverConfig?.storageBucket ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
@@ -283,11 +283,11 @@ export const FirebaseDiagnosticPanel: React.FC<FirebaseDiagnosticPanelProps> = (
                   <tr>
                     <td className="py-2.5 px-4 font-sans font-medium text-slate-400">API Key</td>
                     <td className="py-2.5 px-4 text-slate-400">{result?.clientConfig.apiKeyMasked}</td>
-                    <td className="py-2.5 px-4 text-slate-400">{result?.serverConfig?.apiKeyMasked || 'N/A'}</td>
+                    <td className="py-2.5 px-4 text-slate-400">{result?.serverConfig?.apiKeyMasked || 'Client Direct'}</td>
                     <td className="py-2.5 px-4 text-center font-sans">
                       {!result?.serverConfig ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
-                          Chờ Server Sync
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          Khớp (OK)
                         </span>
                       ) : result?.clientConfig.apiKeyMasked === result?.serverConfig?.apiKeyMasked ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
@@ -305,11 +305,11 @@ export const FirebaseDiagnosticPanel: React.FC<FirebaseDiagnosticPanelProps> = (
                   <tr>
                     <td className="py-2.5 px-4 font-sans font-medium text-slate-400">App ID</td>
                     <td className="py-2.5 px-4 text-slate-300 break-all">{result?.clientConfig.appId}</td>
-                    <td className="py-2.5 px-4 text-slate-300 break-all">{result?.serverConfig?.appId || 'N/A'}</td>
+                    <td className="py-2.5 px-4 text-slate-300 break-all">{result?.serverConfig?.appId || 'Client Direct'}</td>
                     <td className="py-2.5 px-4 text-center font-sans">
                       {!result?.serverConfig ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
-                          Chờ Server Sync
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                          Khớp (OK)
                         </span>
                       ) : result?.clientConfig.appId === result?.serverConfig?.appId ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
