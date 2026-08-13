@@ -73,11 +73,11 @@ export const FirebaseDiagnosticPanel: React.FC<FirebaseDiagnosticPanelProps> = (
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 Bảng Chẩn Đoán Cấu Hình Firestore & Database
                 <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
-                  Live Status
+                  Vercel Live Status
                 </span>
               </h2>
               <p className="text-xs text-slate-400">
-                Xác minh kết nối Firestore & thông số cấu hình dự án Firebase
+                Xác minh kết nối Firestore & thông số cấu hình ứng dụng trên Vercel / Client Direct
               </p>
             </div>
           </div>
@@ -100,14 +100,14 @@ export const FirebaseDiagnosticPanel: React.FC<FirebaseDiagnosticPanelProps> = (
             {/* Status Card 1: Match / Connection Status */}
             <div className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 flex flex-col justify-between">
               <div className="flex items-center justify-between text-xs font-semibold text-slate-400 mb-2">
-                <span>Trạng Thái Kết Nối API & Client</span>
+                <span>Môi Trường Hosting & Kết Nối</span>
                 <Server className="w-4 h-4 text-cyan-400" />
               </div>
               <div className="flex items-center gap-2">
                 {!result?.serverConfig ? (
                   <>
                     <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                    <span className="text-sm font-bold text-emerald-400">Kết Nối Trực Tiếp (Client Direct)</span>
+                    <span className="text-sm font-bold text-emerald-400">Vercel (Client Direct)</span>
                   </>
                 ) : result?.isMatching ? (
                   <>
@@ -123,7 +123,7 @@ export const FirebaseDiagnosticPanel: React.FC<FirebaseDiagnosticPanelProps> = (
               </div>
               <p className="text-[11px] text-slate-400 mt-2">
                 {!result?.serverConfig
-                  ? 'Ứng dụng truy vấn trực tiếp cơ sở dữ liệu Firestore từ trình duyệt.'
+                  ? 'Ứng dụng chạy trên Vercel (https://btctv.vercel.app/) kết nối trực tiếp đến Firestore.'
                   : result?.isMatching
                   ? 'Server API và Client đều truy vấn cùng một cơ sở dữ liệu Firestore.'
                   : 'Kiểm tra cấu hình server và client bên dưới để xem sự lệch cấu hình.'}
@@ -184,8 +184,8 @@ export const FirebaseDiagnosticPanel: React.FC<FirebaseDiagnosticPanelProps> = (
                 <thead className="bg-slate-800/80 text-slate-300 font-semibold border-b border-slate-700/80">
                   <tr>
                     <th className="py-2.5 px-4">Thông Số (Property)</th>
-                    <th className="py-2.5 px-4">Giá Trị Client (Trình Duyệt)</th>
-                    <th className="py-2.5 px-4">Giá Trị Server API</th>
+                    <th className="py-2.5 px-4">Giá Trị Client (Vercel)</th>
+                    <th className="py-2.5 px-4">Server API (Môi Trường Dev)</th>
                     <th className="py-2.5 px-4 text-center">Trạng Thái</th>
                   </tr>
                 </thead>
