@@ -1,0 +1,1464 @@
+[
+  {
+    "id": "log-1786559676982-sblc",
+    "timestamp": "2026-08-12T18:34:36.982Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786559671383-j1py",
+    "timestamp": "2026-08-12T18:34:31.383Z",
+    "operation": "read",
+    "collection": "media",
+    "status": "success",
+    "count": 5
+  },
+  {
+    "id": "log-1786559670610-ava3",
+    "timestamp": "2026-08-12T18:34:30.610Z",
+    "operation": "read",
+    "collection": "users",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559670379-tcuo",
+    "timestamp": "2026-08-12T18:34:30.379Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786559669298-go75",
+    "timestamp": "2026-08-12T18:34:29.298Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559664602-aw31",
+    "timestamp": "2026-08-12T18:34:24.602Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786559664343-oy0m",
+    "timestamp": "2026-08-12T18:34:24.343Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559659944-s1j8",
+    "timestamp": "2026-08-12T18:34:19.944Z",
+    "operation": "write",
+    "collection": "screens",
+    "docId": "SCR-RUYM4",
+    "status": "success",
+    "count": 1
+  },
+  {
+    "id": "log-1786559659927-5sh8",
+    "timestamp": "2026-08-12T18:34:19.927Z",
+    "operation": "write",
+    "collection": "screens",
+    "docId": "SCR-RUYM4",
+    "status": "success",
+    "count": 1
+  },
+  {
+    "id": "log-1786559659909-kj9g",
+    "timestamp": "2026-08-12T18:34:19.909Z",
+    "operation": "delete",
+    "collection": "screens",
+    "docId": "scr-63tiy",
+    "status": "success",
+    "count": 1
+  },
+  {
+    "id": "log-1786559659889-g7jp",
+    "timestamp": "2026-08-12T18:34:19.889Z",
+    "operation": "delete",
+    "collection": "screens",
+    "docId": "SCR-63TIY",
+    "status": "success",
+    "count": 1
+  },
+  {
+    "id": "log-1786559659888-520i",
+    "timestamp": "2026-08-12T18:34:19.888Z",
+    "operation": "write",
+    "collection": "screens",
+    "docId": "SCR-63TIY",
+    "status": "success",
+    "count": 1
+  },
+  {
+    "id": "log-1786559659886-48tr",
+    "timestamp": "2026-08-12T18:34:19.886Z",
+    "operation": "write",
+    "collection": "screens",
+    "docId": "SCR-63TIY",
+    "status": "success",
+    "count": 1
+  },
+  {
+    "id": "log-1786559659804-0u0g",
+    "timestamp": "2026-08-12T18:34:19.804Z",
+    "operation": "delete",
+    "collection": "screens",
+    "docId": "scr-i9k96",
+    "status": "success",
+    "count": 1
+  },
+  {
+    "id": "log-1786559659788-1csc",
+    "timestamp": "2026-08-12T18:34:19.788Z",
+    "operation": "delete",
+    "collection": "screens",
+    "docId": "SCR-I9K96",
+    "status": "success",
+    "count": 1
+  },
+  {
+    "id": "log-1786559604595-w0te",
+    "timestamp": "2026-08-12T18:33:24.595Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786559604350-o5lq",
+    "timestamp": "2026-08-12T18:33:24.350Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559544654-dh0x",
+    "timestamp": "2026-08-12T18:32:24.654Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786559544393-w82t",
+    "timestamp": "2026-08-12T18:32:24.393Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559484589-e814",
+    "timestamp": "2026-08-12T18:31:24.589Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786559484341-nknq",
+    "timestamp": "2026-08-12T18:31:24.341Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559424544-k5ve",
+    "timestamp": "2026-08-12T18:30:24.544Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786559424320-j912",
+    "timestamp": "2026-08-12T18:30:24.320Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559364634-bwqn",
+    "timestamp": "2026-08-12T18:29:24.634Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786559364358-iilx",
+    "timestamp": "2026-08-12T18:29:24.358Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559360684-b41x",
+    "timestamp": "2026-08-12T18:29:20.684Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786559360434-hnwj",
+    "timestamp": "2026-08-12T18:29:20.434Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559313628-ix4f",
+    "timestamp": "2026-08-12T18:28:33.628Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559313368-yubz",
+    "timestamp": "2026-08-12T18:28:33.368Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559309642-unsw",
+    "timestamp": "2026-08-12T18:28:29.642Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559309398-dt03",
+    "timestamp": "2026-08-12T18:28:29.398Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559271734-fuiu",
+    "timestamp": "2026-08-12T18:27:51.734Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786559271479-qklt",
+    "timestamp": "2026-08-12T18:27:51.479Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559211776-mixw",
+    "timestamp": "2026-08-12T18:26:51.776Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786559211520-pzk6",
+    "timestamp": "2026-08-12T18:26:51.520Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559207783-ztzy",
+    "timestamp": "2026-08-12T18:26:47.783Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786559207523-8eo6",
+    "timestamp": "2026-08-12T18:26:47.523Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559174639-llpg",
+    "timestamp": "2026-08-12T18:26:14.639Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559174393-i9yi",
+    "timestamp": "2026-08-12T18:26:14.393Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559114606-1k1y",
+    "timestamp": "2026-08-12T18:25:14.606Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559114363-7730",
+    "timestamp": "2026-08-12T18:25:14.363Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559110526-sire",
+    "timestamp": "2026-08-12T18:25:10.526Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559110320-ksw0",
+    "timestamp": "2026-08-12T18:25:10.320Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559102479-a6j4",
+    "timestamp": "2026-08-12T18:25:02.479Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786559102268-0rts",
+    "timestamp": "2026-08-12T18:25:02.268Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559101861-2spo",
+    "timestamp": "2026-08-12T18:25:01.861Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786559101658-4zl8",
+    "timestamp": "2026-08-12T18:25:01.658Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559101228-pmoq",
+    "timestamp": "2026-08-12T18:25:01.228Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786559101001-j1r2",
+    "timestamp": "2026-08-12T18:25:01.001Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559100672-d1s9",
+    "timestamp": "2026-08-12T18:25:00.672Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786559100443-3hd3",
+    "timestamp": "2026-08-12T18:25:00.443Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786559099992-rbsi",
+    "timestamp": "2026-08-12T18:24:59.992Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786559099752-1wj1",
+    "timestamp": "2026-08-12T18:24:59.752Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786558674396-26rg",
+    "timestamp": "2026-08-12T18:17:54.396Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786558674185-f8zp",
+    "timestamp": "2026-08-12T18:17:54.185Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786558673797-kn9e",
+    "timestamp": "2026-08-12T18:17:53.797Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786558673579-aigd",
+    "timestamp": "2026-08-12T18:17:53.579Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786558525876-ypbk",
+    "timestamp": "2026-08-12T18:15:25.876Z",
+    "operation": "read",
+    "collection": "media",
+    "status": "success",
+    "count": 5
+  },
+  {
+    "id": "log-1786558525139-3zh3",
+    "timestamp": "2026-08-12T18:15:25.139Z",
+    "operation": "read",
+    "collection": "users",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786558524913-25xa",
+    "timestamp": "2026-08-12T18:15:24.913Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786558523846-zbfv",
+    "timestamp": "2026-08-12T18:15:23.846Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786558501234-8w0v",
+    "timestamp": "2026-08-12T18:15:01.234Z",
+    "operation": "read",
+    "collection": "media",
+    "status": "success",
+    "count": 5
+  },
+  {
+    "id": "log-1786558500469-k4rt",
+    "timestamp": "2026-08-12T18:15:00.469Z",
+    "operation": "read",
+    "collection": "users",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786558500235-18np",
+    "timestamp": "2026-08-12T18:15:00.235Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786558499207-ad62",
+    "timestamp": "2026-08-12T18:14:59.207Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786558338842-2uu9",
+    "timestamp": "2026-08-12T18:12:18.842Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786558338624-6x0g",
+    "timestamp": "2026-08-12T18:12:18.624Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786558136668-zqey",
+    "timestamp": "2026-08-12T18:08:56.668Z",
+    "operation": "write",
+    "collection": "screens",
+    "docId": "SCR-I9K96",
+    "status": "success",
+    "count": 1
+  },
+  {
+    "id": "log-1786558136638-fq3e",
+    "timestamp": "2026-08-12T18:08:56.638Z",
+    "operation": "write",
+    "collection": "screens",
+    "docId": "SCR-I9K96",
+    "status": "success",
+    "count": 1
+  },
+  {
+    "id": "log-1786558115855-js5n",
+    "timestamp": "2026-08-12T18:08:35.855Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786558115628-d476",
+    "timestamp": "2026-08-12T18:08:35.628Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786558086083-juio",
+    "timestamp": "2026-08-12T18:08:06.083Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786558085881-68g5",
+    "timestamp": "2026-08-12T18:08:05.881Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786558082153-8n93",
+    "timestamp": "2026-08-12T18:08:02.153Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786558081931-3ra0",
+    "timestamp": "2026-08-12T18:08:01.931Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786558063520-0wqw",
+    "timestamp": "2026-08-12T18:07:43.520Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786558063293-tgkm",
+    "timestamp": "2026-08-12T18:07:43.293Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786558003488-ifmo",
+    "timestamp": "2026-08-12T18:06:43.488Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786558003273-h9nm",
+    "timestamp": "2026-08-12T18:06:43.273Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786558000506-6f37",
+    "timestamp": "2026-08-12T18:06:40.506Z",
+    "operation": "write",
+    "collection": "screens",
+    "docId": "SCR-GUJDE",
+    "status": "success",
+    "count": 1
+  },
+  {
+    "id": "log-1786558000484-gqps",
+    "timestamp": "2026-08-12T18:06:40.484Z",
+    "operation": "write",
+    "collection": "screens",
+    "docId": "SCR-GUJDE",
+    "status": "success",
+    "count": 1
+  },
+  {
+    "id": "log-1786557999567-uj6a",
+    "timestamp": "2026-08-12T18:06:39.567Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786557999343-r779",
+    "timestamp": "2026-08-12T18:06:39.343Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786557964008-42wu",
+    "timestamp": "2026-08-12T18:06:04.008Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786557963803-ee6e",
+    "timestamp": "2026-08-12T18:06:03.803Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786557963431-olf7",
+    "timestamp": "2026-08-12T18:06:03.431Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786557963227-gzol",
+    "timestamp": "2026-08-12T18:06:03.227Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786557962832-3jgb",
+    "timestamp": "2026-08-12T18:06:02.832Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786557962622-mt39",
+    "timestamp": "2026-08-12T18:06:02.622Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786557961083-ughg",
+    "timestamp": "2026-08-12T18:06:01.083Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786557960871-4czl",
+    "timestamp": "2026-08-12T18:06:00.871Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786557960460-rx6r",
+    "timestamp": "2026-08-12T18:06:00.460Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786557960238-xkp0",
+    "timestamp": "2026-08-12T18:06:00.238Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786557927190-0d0x",
+    "timestamp": "2026-08-12T18:05:27.190Z",
+    "operation": "read",
+    "collection": "media",
+    "status": "success",
+    "count": 5
+  },
+  {
+    "id": "log-1786557926433-qwur",
+    "timestamp": "2026-08-12T18:05:26.433Z",
+    "operation": "read",
+    "collection": "users",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786557926203-ceef",
+    "timestamp": "2026-08-12T18:05:26.203Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786557925184-h5sc",
+    "timestamp": "2026-08-12T18:05:25.184Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786557639992-v50n",
+    "timestamp": "2026-08-12T18:00:39.992Z",
+    "operation": "read",
+    "collection": "media",
+    "status": "success",
+    "count": 5
+  },
+  {
+    "id": "log-1786557639212-0b63",
+    "timestamp": "2026-08-12T18:00:39.212Z",
+    "operation": "read",
+    "collection": "users",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786557638970-8s31",
+    "timestamp": "2026-08-12T18:00:38.970Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786557637884-ccbg",
+    "timestamp": "2026-08-12T18:00:37.884Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786557402999-qv00",
+    "timestamp": "2026-08-12T17:56:42.999Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786557402610-95no",
+    "timestamp": "2026-08-12T17:56:42.610Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786557342938-7ato",
+    "timestamp": "2026-08-12T17:55:42.938Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786557342548-9ujw",
+    "timestamp": "2026-08-12T17:55:42.548Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786557282937-cxyj",
+    "timestamp": "2026-08-12T17:54:42.937Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786557282548-oxwv",
+    "timestamp": "2026-08-12T17:54:42.548Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786557222941-orod",
+    "timestamp": "2026-08-12T17:53:42.941Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786557222555-04xh",
+    "timestamp": "2026-08-12T17:53:42.555Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786557162774-ardd",
+    "timestamp": "2026-08-12T17:52:42.774Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786557162543-tspv",
+    "timestamp": "2026-08-12T17:52:42.543Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786557102939-s6vb",
+    "timestamp": "2026-08-12T17:51:42.939Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786557102551-fg5g",
+    "timestamp": "2026-08-12T17:51:42.551Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786557042751-kdev",
+    "timestamp": "2026-08-12T17:50:42.751Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786557042530-it7d",
+    "timestamp": "2026-08-12T17:50:42.530Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786557029505-6mte",
+    "timestamp": "2026-08-12T17:50:29.505Z",
+    "operation": "write",
+    "collection": "screens",
+    "docId": "SCR-GUJDE",
+    "status": "success",
+    "count": 1
+  },
+  {
+    "id": "log-1786556982975-37tf",
+    "timestamp": "2026-08-12T17:49:42.975Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556982585-0klx",
+    "timestamp": "2026-08-12T17:49:42.585Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556923695-svnc",
+    "timestamp": "2026-08-12T17:48:43.695Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556923468-77sj",
+    "timestamp": "2026-08-12T17:48:43.468Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556864602-fnl1",
+    "timestamp": "2026-08-12T17:47:44.602Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556864381-3kcl",
+    "timestamp": "2026-08-12T17:47:44.381Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556802804-0pps",
+    "timestamp": "2026-08-12T17:46:42.804Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556802593-sa1j",
+    "timestamp": "2026-08-12T17:46:42.593Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556801504-iaqm",
+    "timestamp": "2026-08-12T17:46:41.504Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556801118-7ghd",
+    "timestamp": "2026-08-12T17:46:41.118Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556742787-hkgc",
+    "timestamp": "2026-08-12T17:45:42.787Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556742571-upxi",
+    "timestamp": "2026-08-12T17:45:42.571Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556682961-0g1n",
+    "timestamp": "2026-08-12T17:44:42.961Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556682575-tww3",
+    "timestamp": "2026-08-12T17:44:42.575Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556636423-yas5",
+    "timestamp": "2026-08-12T17:43:56.423Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556636038-6y0n",
+    "timestamp": "2026-08-12T17:43:56.038Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556623394-wehy",
+    "timestamp": "2026-08-12T17:43:43.394Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556623188-1beo",
+    "timestamp": "2026-08-12T17:43:43.188Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556622707-qel6",
+    "timestamp": "2026-08-12T17:43:42.707Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556622493-og9d",
+    "timestamp": "2026-08-12T17:43:42.493Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556622141-g77a",
+    "timestamp": "2026-08-12T17:43:42.141Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556621937-wnc3",
+    "timestamp": "2026-08-12T17:43:41.937Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556621504-55yk",
+    "timestamp": "2026-08-12T17:43:41.504Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556621282-04gv",
+    "timestamp": "2026-08-12T17:43:41.282Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556620894-odj9",
+    "timestamp": "2026-08-12T17:43:40.894Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556620661-3spt",
+    "timestamp": "2026-08-12T17:43:40.661Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556497383-afof",
+    "timestamp": "2026-08-12T17:41:37.383Z",
+    "operation": "write",
+    "collection": "screens",
+    "docId": "SCR-GUJDE",
+    "status": "success",
+    "count": 1
+  },
+  {
+    "id": "log-1786556429896-utlk",
+    "timestamp": "2026-08-12T17:40:29.896Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556429683-w0m7",
+    "timestamp": "2026-08-12T17:40:29.683Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556425984-oe5s",
+    "timestamp": "2026-08-12T17:40:25.984Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556425757-16df",
+    "timestamp": "2026-08-12T17:40:25.757Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556413665-1n2f",
+    "timestamp": "2026-08-12T17:40:13.665Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556413448-8ujf",
+    "timestamp": "2026-08-12T17:40:13.448Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556409422-06bu",
+    "timestamp": "2026-08-12T17:40:09.422Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556409196-qktl",
+    "timestamp": "2026-08-12T17:40:09.196Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556399833-9hyj",
+    "timestamp": "2026-08-12T17:39:59.833Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556399545-47d7",
+    "timestamp": "2026-08-12T17:39:59.545Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556395862-qovv",
+    "timestamp": "2026-08-12T17:39:55.862Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556395461-ete0",
+    "timestamp": "2026-08-12T17:39:55.461Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556382310-0bq1",
+    "timestamp": "2026-08-12T17:39:42.310Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556382082-cedq",
+    "timestamp": "2026-08-12T17:39:42.082Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556378427-6a4a",
+    "timestamp": "2026-08-12T17:39:38.427Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556378028-0cuu",
+    "timestamp": "2026-08-12T17:39:38.028Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556327435-iemj",
+    "timestamp": "2026-08-12T17:38:47.435Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556327223-cchs",
+    "timestamp": "2026-08-12T17:38:47.223Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556326840-ekta",
+    "timestamp": "2026-08-12T17:38:46.840Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556326629-poyy",
+    "timestamp": "2026-08-12T17:38:46.629Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556326235-e6hj",
+    "timestamp": "2026-08-12T17:38:46.235Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556326006-ljss",
+    "timestamp": "2026-08-12T17:38:46.007Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556292057-czxv",
+    "timestamp": "2026-08-12T17:38:12.057Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556291815-itva",
+    "timestamp": "2026-08-12T17:38:11.815Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556291248-wip4",
+    "timestamp": "2026-08-12T17:38:11.248Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556290993-n6y3",
+    "timestamp": "2026-08-12T17:38:10.993Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556156237-yr8p",
+    "timestamp": "2026-08-12T17:35:56.237Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556155994-cq00",
+    "timestamp": "2026-08-12T17:35:55.994Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556155611-yqag",
+    "timestamp": "2026-08-12T17:35:55.611Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556155391-ut4t",
+    "timestamp": "2026-08-12T17:35:55.391Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556076452-9kiu",
+    "timestamp": "2026-08-12T17:34:36.452Z",
+    "operation": "read",
+    "collection": "media",
+    "status": "success",
+    "count": 5
+  },
+  {
+    "id": "log-1786556075668-xq1s",
+    "timestamp": "2026-08-12T17:34:35.668Z",
+    "operation": "read",
+    "collection": "users",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556075432-r14d",
+    "timestamp": "2026-08-12T17:34:35.432Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556074331-mh97",
+    "timestamp": "2026-08-12T17:34:34.331Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556058814-ja6v",
+    "timestamp": "2026-08-12T17:34:18.814Z",
+    "operation": "read",
+    "collection": "media",
+    "status": "success",
+    "count": 5
+  },
+  {
+    "id": "log-1786556058020-pfkc",
+    "timestamp": "2026-08-12T17:34:18.020Z",
+    "operation": "read",
+    "collection": "users",
+    "status": "success",
+    "count": 2
+  },
+  {
+    "id": "log-1786556057759-2lia",
+    "timestamp": "2026-08-12T17:34:17.759Z",
+    "operation": "read",
+    "collection": "screens",
+    "status": "success",
+    "count": 3
+  },
+  {
+    "id": "log-1786556056645-es9u",
+    "timestamp": "2026-08-12T17:34:16.645Z",
+    "operation": "read",
+    "collection": "groups",
+    "status": "success",
+    "count": 2
+  }
+]

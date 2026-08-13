@@ -1,0 +1,14 @@
+[
+  {
+    "email": "admin",
+    "password": "bdc9fc73f65aece77761e33bcb3bc5571a2d06d8185d5f403f0442dffb0c3cf3",
+    "role": "admin",
+    "name": "Quản trị viên (Admin)"
+  },
+  {
+    "email": "user",
+    "password": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
+    "role": "operator",
+    "name": "Người dùng (User)"
+  }
+]

@@ -1,0 +1,16 @@
+[
+  {
+    "id": "grp-1108",
+    "buildingId": "building-a",
+    "code": "GRP_TS_28_THD_CABIN",
+    "name": "Cabin 28",
+    "description": "Tất cả màn hình tại Trụ sở 28 THĐ"
+  },
+  {
+    "id": "grp-8152",
+    "description": "Tất cả màn hình tại Trụ sở 28 THĐ",
+    "buildingId": "building-a",
+    "name": "Sảnh 28",
+    "code": "GRP_TS_28_THD_SANH"
+  }
+]

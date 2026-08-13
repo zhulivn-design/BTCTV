@@ -1,0 +1,6 @@
+{
+  "name": "Android TV WebView Launcher",
+  "description": "Ứng dụng WebView toàn màn hình cho Android TV hỗ trợ điều khiển từ xa D-Pad, tùy chỉnh URL, lưu cấu hình và chế độ Kiosk.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
