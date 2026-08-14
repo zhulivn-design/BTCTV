@@ -12,7 +12,14 @@ import { TVOSDBar } from './components/TVOSDBar';
 import { TVSettingsModal } from './components/TVSettingsModal';
 import { TVRemoteOverlay } from './components/TVRemoteOverlay';
 import { DeviceApprovalPending } from './components/DeviceApprovalPending';
-import { approveScreenFirestore } from './lib/firebaseStore';
+import {
+  approveScreenFirestore,
+  saveGlobalConfigFirestore,
+  subscribeGlobalConfigFirestore,
+  subscribeSingleScreenFirestore,
+  publishConfigFirestore,
+  upsertScreenFirestore,
+} from './lib/firebaseStore';
 import './lib/firebaseDiagnostic';
 
 export default function App() {
@@ -40,6 +47,7 @@ export default function App() {
   const [isPaused, setIsPaused] = useState(false);
   const [isSleeping, setIsSleeping] = useState(false);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const osdTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Sleep Mode Check
   useEffect(() => {
@@ -173,219 +181,117 @@ export default function App() {
     }
   }, [screenId]);
 
-  // Poll general config from our Express backend API to stay synced across tabs/devices without active WebSockets
+  // Real-time config listener from Firestore: keeps all devices/tabs instantly synced on Vercel or local
   useEffect(() => {
-    const pollConfig = async () => {
-      try {
-        const resp = await fetch('/api/config');
-        if (resp.ok) {
-          const result = await resp.json();
-          if (result.ok && result.config) {
-            const data = result.config as TVConfig;
-            setConfig((prev) => {
-              if (JSON.stringify(prev) !== JSON.stringify(data)) {
-                localStorage.setItem('android_tv_webview_config_v2', JSON.stringify(data));
-                // IF there is a selectedGroupId in the synced config, let's update screenGroupId!
-                if (data.selectedGroupId) {
-                  setScreenGroupId(data.selectedGroupId);
-                  localStorage.setItem('android_tv_webview_screen_group_id', data.selectedGroupId);
-                } else {
-                  // fallback
-                  const fallbackId = data.screenGroups?.[0]?.id || '';
-                  setScreenGroupId(fallbackId);
-                  localStorage.setItem('android_tv_webview_screen_group_id', fallbackId);
-                }
-                return data;
-              }
-              return prev;
-            });
+    const unsubscribe = subscribeGlobalConfigFirestore((data) => {
+      if (data && typeof data === 'object') {
+        setConfig((prev) => {
+          if (JSON.stringify(prev) !== JSON.stringify(data)) {
+            localStorage.setItem('android_tv_webview_config_v2', JSON.stringify(data));
+            if (data.selectedGroupId) {
+              setScreenGroupId(data.selectedGroupId);
+              localStorage.setItem('android_tv_webview_screen_group_id', data.selectedGroupId);
+            } else if (data.screenGroups?.[0]?.id) {
+              setScreenGroupId(data.screenGroups[0].id);
+              localStorage.setItem('android_tv_webview_screen_group_id', data.screenGroups[0].id);
+            }
+            return data;
           }
+          return prev;
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Real-time single screen approval listener from Firestore (1 read on connect, 0 continuous reads!)
+  useEffect(() => {
+    const unsubscribe = subscribeSingleScreenFirestore(screenId, (me) => {
+      if (me) {
+        if (me.approved !== undefined) {
+          const isAppr = Boolean(me.approved);
+          setIsDeviceApproved(isAppr);
+          sessionStorage.setItem('android_tv_approved', isAppr ? 'true' : 'false');
+          localStorage.setItem('android_tv_approved', isAppr ? 'true' : 'false');
         }
-      } catch (err) {
-        // Silently catch polling network errors
+        if (me.groupId) {
+          setScreenGroupId(me.groupId);
+        }
       }
-    };
+    });
 
-    pollConfig();
-    const interval = setInterval(pollConfig, 10000); // Poll every 10 seconds (extremely light on backend)
-    return () => clearInterval(interval);
-  }, []);
+    return () => unsubscribe();
+  }, [screenId]);
 
-  // Auto-fullscreen on first user interaction or mount
+  // One-time initial device registration in Firestore (runs once when screen connects or changes group)
   useEffect(() => {
-    const enterFullscreen = () => {
-      if (!document.fullscreenElement) {
-         if (document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen().catch(() => {});
-         }
-      }
-      window.removeEventListener('click', enterFullscreen);
-      window.removeEventListener('keydown', enterFullscreen);
-    };
+    upsertScreenFirestore({
+      id: screenId,
+      name: `Màn hình ${screenId}`,
+      groupId: screenGroupId,
+      buildingId: config.selectedBuildingId || 'building-a',
+      zone: config.selectedZone || 'lobby',
+      lastSeen: Date.now(),
+      status: 'online',
+      approved: isDeviceApproved,
+    }).catch(() => {});
+  }, [screenId, screenGroupId, config.selectedBuildingId, config.selectedZone, isDeviceApproved]);
 
-    window.addEventListener('click', enterFullscreen);
-    window.addEventListener('keydown', enterFullscreen);
-    
-    // Attempt immediate fullscreen
-    enterFullscreen();
-
-    return () => {
-      window.removeEventListener('click', enterFullscreen);
-      window.removeEventListener('keydown', enterFullscreen);
-    };
-  }, []);
-
-  const osdTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Memory leak prevention: reload after 24 hours
+  // Device heartbeat effect: lightweight HTTP ping to Express server without writing to Firestore
   useEffect(() => {
-    const timer = setTimeout(() => {
-      window.location.reload();
-    }, 24 * 60 * 60 * 1000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Device heartbeat effect: reports device presence & fetches assigned targeted config
-  useEffect(() => {
-    // Fetch config and approval status
     const performHeartbeat = async () => {
       try {
-        const resp = await fetch('/api/screens/heartbeat', {
+        fetch('/api/screens/heartbeat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             screenId,
-            name: 'Màn Hình Sảnh A - Cửa Chính',
+            name: `Màn hình ${screenId}`,
             groupId: screenGroupId,
             buildingId: config.selectedBuildingId,
             zone: config.selectedZone,
           }),
-        });
-
-        const contentType = resp.headers.get('content-type');
-        if (resp.ok && contentType && contentType.includes('application/json')) {
-          const data = await resp.json();
-          if (data.ok) {
-            if (data.approved !== undefined) {
-              const isAppr = Boolean(data.approved);
-              setIsDeviceApproved(isAppr);
-              sessionStorage.setItem('android_tv_approved', isAppr ? 'true' : 'false');
-              localStorage.setItem('android_tv_approved', isAppr ? 'true' : 'false');
-            }
-
-            const assignedBldId = data.buildingId;
-            const assignedZone = data.zone;
-            const assignedGroupId = data.groupId;
-            const assigned = data.assignedConfig;
-
-            if (assignedGroupId) {
-              setScreenGroupId(assignedGroupId);
-            }
-
-            setConfig((prev) => {
-              let changed = false;
-              let updated = { ...prev };
-
-              // 1. Sync assigned building & zone from server store
-              if (
-                (assignedBldId && assignedBldId !== prev.selectedBuildingId) ||
-                (assignedZone && assignedZone !== prev.selectedZone)
-              ) {
-                const targetBldId = assignedBldId || prev.selectedBuildingId;
-                const targetZone = assignedZone || prev.selectedZone;
-
-                const bld = (prev.buildings || []).find((b) => b.id === targetBldId);
-                if (bld) {
-                  const zoneConfig = targetZone === 'cabin' ? bld.cabinConfig : bld.lobbyConfig;
-
-                  updated.selectedBuildingId = targetBldId;
-                  updated.selectedZone = targetZone;
-                  updated.displayOrientation = zoneConfig.displayOrientation || prev.displayOrientation;
-                  updated.organizationText = zoneConfig.organizationText || prev.organizationText;
-                  updated.marqueeText = zoneConfig.marqueeText || prev.marqueeText;
-                  updated.showMarquee = zoneConfig.showMarquee !== false;
-                  updated.slideshowEnabled = zoneConfig.slideshowEnabled !== false;
-                  updated.autoScrollEnabled = zoneConfig.autoScrollEnabled !== false;
-                  updated.autoScrollSpeed = zoneConfig.autoScrollSpeed || 3;
-                  updated.slides = JSON.parse(JSON.stringify(zoneConfig.slides || []));
-                  changed = true;
-                }
-              }
-
-              // 2. Override with broadcast config if present
-              if (assigned && assigned.publishedAt) {
-                if (
-                  updated.marqueeText !== assigned.marqueeText ||
-                  updated.organizationText !== assigned.organizationText ||
-                  JSON.stringify(updated.slides) !== JSON.stringify(assigned.slides)
-                ) {
-                  updated = {
-                    ...updated,
-                    organizationText: assigned.organizationText || updated.organizationText,
-                    marqueeText: assigned.marqueeText || updated.marqueeText,
-                    slides: JSON.parse(JSON.stringify(assigned.slides || updated.slides)),
-                  };
-                  changed = true;
-                }
-              }
-
-              if (changed) {
-                localStorage.setItem('android_tv_webview_config_v2', JSON.stringify(updated));
-                return updated;
-              }
-              return prev;
-            });
-          }
-        }
+        }).catch(() => {});
       } catch (err) {
         // Silently catch network errors
       }
     };
 
     performHeartbeat();
-    // 3 seconds if not approved (very fast activation!), 8 seconds if approved (near real-time sync!)
-    const interval = setInterval(performHeartbeat, isDeviceApproved ? 8000 : 3000);
+    const interval = setInterval(performHeartbeat, isDeviceApproved ? 30000 : 10000);
     return () => clearInterval(interval);
-  }, [screenId, screenGroupId, config.selectedBuildingId, config.selectedZone, isDeviceApproved]); 
-
+  }, [screenId, screenGroupId, config.selectedBuildingId, config.selectedZone, isDeviceApproved]);
 
   // Save config changes to localStorage & Firestore
   const handleSaveConfig = async (newConfig: TVConfig) => {
     setConfig(newConfig);
     try {
       localStorage.setItem('android_tv_webview_config_v2', JSON.stringify(newConfig));
-      const bldId = newConfig.selectedBuildingId;
-      const zone = newConfig.selectedZone;
-      const groupId = newConfig.selectedGroupId;
+      const groupId = newConfig.selectedGroupId || newConfig.screenGroups?.[0]?.id || '';
       if (groupId) {
         setScreenGroupId(groupId);
         localStorage.setItem('android_tv_webview_screen_group_id', groupId);
-      } else {
-        const defaultGroupId = newConfig.screenGroups?.[0]?.id || '';
-        setScreenGroupId(defaultGroupId);
-        localStorage.setItem('android_tv_webview_screen_group_id', defaultGroupId);
       }
 
-      // Save directly to Express backend API which will persist locally to tv_config.json and asynchronously sync to Firestore
-      await fetch('/api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config: newConfig }),
-      }).catch(err => console.error('Error saving config to API:', err));
+      // 1. Direct write to Firestore settings/tv_config_v2
+      await saveGlobalConfigFirestore(newConfig);
 
-      // Also publish to server store so heartbeats don't overwrite with stale assignedConfig
-      await fetch('/api/screens/publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          targetType: groupId ? 'groups' : 'all',
-          targetGroupIds: groupId ? [groupId] : [],
-          config: newConfig,
-          title: 'Cập nhật cấu hình hệ thống',
+      // 2. Publish config update
+      await publishConfigFirestore(
+        [],
+        newConfig,
+        {
+          id: 'pub-' + Date.now(),
+          targetType: 'all',
+          publishedAt: new Date().toISOString(),
+          targetSummary: 'Cập nhật cấu hình hệ thống',
+          affectedScreensCount: 1,
           publisherEmail: 'system@admin.com',
           publisherName: 'Hệ thống',
-        }),
-      }).catch(() => {});
+          configSnapshot: newConfig,
+        }
+      );
     } catch (e) {
       console.error('Failed to save TV config:', e);
     }

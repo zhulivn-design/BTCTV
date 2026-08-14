@@ -1,37 +1,248 @@
+import {
+  db,
+  doc,
+  getDoc,
+  setDoc,
+  getDocs,
+  deleteDoc,
+  collection,
+  onSnapshot,
+} from './firebase';
 import { ScreenDevice, ScreenGroup, PublishHistoryItem, TVConfig } from '../types';
 
+// Helper to remove `undefined` values recursively before passing to Firestore
+export function sanitizeForFirestore(obj: any): any {
+  if (obj === null || obj === undefined) return null;
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(sanitizeForFirestore);
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      result[key] = sanitizeForFirestore(value);
+    }
+  }
+  return result;
+}
+
+/**
+ * Save Global Config directly to Firestore (settings/tv_config_v2)
+ * and split documents for backward compatibility.
+ */
+export async function saveGlobalConfigFirestore(config: TVConfig): Promise<boolean> {
+  const sanitized = sanitizeForFirestore(config);
+  let success = false;
+
+  try {
+    // 1. Direct client-side write to Firestore (Primary for Vercel/Static hosting)
+    await setDoc(doc(db, 'settings', 'tv_config_v2'), sanitized, { merge: true });
+
+    const generalConfig = { ...sanitized, buildings: [], slides: [] };
+    const buildingsConfig = { buildings: sanitized.buildings || [] };
+    const slidesConfig = { slides: sanitized.slides || [] };
+
+    await Promise.all([
+      setDoc(doc(db, 'settings', 'tv_config_general'), generalConfig, { merge: true }),
+      setDoc(doc(db, 'settings', 'tv_config_buildings'), buildingsConfig, { merge: true }),
+      setDoc(doc(db, 'settings', 'tv_config_slides'), slidesConfig, { merge: true }),
+    ]);
+
+    success = true;
+  } catch (err) {
+    console.warn('Direct Firestore save failed, attempting API fallback:', err);
+  }
+
+  // 2. Secondary Express API call fallback (if Node server is present)
+  try {
+    await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config }),
+    });
+  } catch {
+    // Ignore API route errors on Vercel/Static hosting
+  }
+
+  return success;
+}
+
+/**
+ * Real-time subscription to Global Config in Firestore.
+ * Fires callback whenever config changes on ANY device anywhere in the world!
+ */
+export function subscribeGlobalConfigFirestore(
+  onUpdate: (config: TVConfig) => void,
+  onError?: (err: any) => void
+): () => void {
+  const configDocRef = doc(db, 'settings', 'tv_config_v2');
+
+  const unsubscribe = onSnapshot(
+    configDocRef,
+    (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data() as TVConfig;
+        if (data && typeof data === 'object') {
+          onUpdate(data);
+        }
+      }
+    },
+    (err) => {
+      console.warn('Firestore global config subscription notice:', err);
+      if (onError) onError(err);
+    }
+  );
+
+  return unsubscribe;
+}
+
+/**
+ * Real-time subscription to a SINGLE Screen Document in Firestore.
+ * Extremely quota-efficient: 1 read on connect, 1 read ONLY when this specific screen is approved/updated by Admin!
+ */
+export function subscribeSingleScreenFirestore(
+  screenId: string,
+  onUpdate: (screen: ScreenDevice | null) => void
+): () => void {
+  const docRef = doc(db, 'screens', screenId);
+
+  const unsubscribe = onSnapshot(
+    docRef,
+    (snapshot) => {
+      if (snapshot.exists()) {
+        onUpdate({ id: snapshot.id, ...snapshot.data() } as ScreenDevice);
+      } else {
+        onUpdate(null);
+      }
+    },
+    (err) => {
+      console.warn(`Firestore screen ${screenId} subscription notice:`, err);
+    }
+  );
+
+  return unsubscribe;
+}
+
+/**
+ * Real-time subscription to Screens Collection in Firestore (for Admin views only).
+ */
+export function subscribeScreensFirestore(
+  onUpdate: (screens: ScreenDevice[]) => void
+): () => void {
+  const screensColRef = collection(db, 'screens');
+
+  const unsubscribe = onSnapshot(
+    screensColRef,
+    (snapshot) => {
+      const screens: ScreenDevice[] = [];
+      snapshot.forEach((dSnap) => {
+        if (dSnap.exists()) {
+          screens.push({ id: dSnap.id, ...dSnap.data() } as ScreenDevice);
+        }
+      });
+      onUpdate(screens);
+    },
+    (err) => {
+      console.warn('Firestore screens subscription notice:', err);
+    }
+  );
+
+  return unsubscribe;
+}
+
+/**
+ * Real-time subscription to Groups Collection in Firestore.
+ */
+export function subscribeGroupsFirestore(
+  onUpdate: (groups: ScreenGroup[]) => void
+): () => void {
+  const groupsColRef = collection(db, 'groups');
+
+  const unsubscribe = onSnapshot(
+    groupsColRef,
+    (snapshot) => {
+      const groups: ScreenGroup[] = [];
+      snapshot.forEach((dSnap) => {
+        if (dSnap.exists()) {
+          groups.push({ id: dSnap.id, ...dSnap.data() } as ScreenGroup);
+        }
+      });
+      onUpdate(groups);
+    },
+    (err) => {
+      console.warn('Firestore groups subscription notice:', err);
+    }
+  );
+
+  return unsubscribe;
+}
+
+/**
+ * Fetch initial combined state from Firestore (and API fallback).
+ */
 export async function fetchFirestoreState(): Promise<{
   screens: ScreenDevice[];
   groups: ScreenGroup[];
   history: PublishHistoryItem[];
+  config?: TVConfig | null;
 }> {
+  let screens: ScreenDevice[] = [];
+  let groups: ScreenGroup[] = [];
+  let history: PublishHistoryItem[] = [];
+  let config: TVConfig | null = null;
+
+  // 1. Primary: Direct Firestore Client SDK
   try {
-    const resp = await fetch('/api/screens/state');
-    if (resp.ok) {
-      const data = await resp.json();
-      if (data && data.ok) {
-        return {
-          screens: data.screens || [],
-          groups: data.groups || [],
-          history: data.publishHistory || [],
-        };
-      }
+    const [sSnap, gSnap, hSnap, cSnap] = await Promise.all([
+      getDocs(collection(db, 'screens')),
+      getDocs(collection(db, 'groups')),
+      getDocs(collection(db, 'history')),
+      getDoc(doc(db, 'settings', 'tv_config_v2')),
+    ]);
+
+    sSnap.forEach((d) => screens.push({ id: d.id, ...d.data() } as ScreenDevice));
+    gSnap.forEach((d) => groups.push({ id: d.id, ...d.data() } as ScreenGroup));
+    hSnap.forEach((d) => history.push({ id: d.id, ...d.data() } as PublishHistoryItem));
+    if (cSnap.exists()) {
+      config = cSnap.data() as TVConfig;
     }
   } catch (err) {
-    console.warn('Error fetching server screens state, falling back:', err);
+    console.warn('Error fetching direct Firestore state:', err);
   }
-  return { screens: [], groups: [], history: [] };
+
+  // 2. Fallback to API if Firestore was empty or failed
+  if (screens.length === 0 && groups.length === 0) {
+    try {
+      const resp = await fetch('/api/screens/state');
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data && data.ok) {
+          screens = data.screens || screens;
+          groups = data.groups || groups;
+          history = data.publishHistory || history;
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return { screens, groups, history, config };
 }
 
 export async function upsertScreenFirestore(screen: ScreenDevice): Promise<void> {
+  try {
+    await setDoc(doc(db, 'screens', screen.id), sanitizeForFirestore(screen), { merge: true });
+  } catch (err) {
+    console.warn('Direct Firestore screen upsert error:', err);
+  }
+
   try {
     await fetch('/api/screens/devices', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(screen),
     });
-  } catch (err) {
-    console.warn('Error syncing screen via API:', err);
+  } catch {
+    // ignore
   }
 }
 
@@ -42,58 +253,103 @@ export async function approveScreenFirestore(
   buildingId: string,
   zone: string
 ): Promise<void> {
+  const payload = {
+    id: screenId,
+    name,
+    groupId,
+    buildingId,
+    zone,
+    approved: true,
+    lastSeen: new Date().toISOString(),
+    status: 'online',
+  };
+
+  try {
+    await setDoc(doc(db, 'screens', screenId), sanitizeForFirestore(payload), { merge: true });
+  } catch (err) {
+    console.warn('Direct Firestore approve screen error:', err);
+  }
+
   try {
     await fetch('/api/screens/approve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ screenId, name, groupId, buildingId, zone }),
     });
-  } catch (err) {
-    console.warn('Error approving screen via API:', err);
+  } catch {
+    // ignore
   }
 }
 
 export async function revokeScreenFirestore(screenId: string): Promise<void> {
+  try {
+    await setDoc(
+      doc(db, 'screens', screenId),
+      sanitizeForFirestore({ approved: false, status: 'revoked', updatedAt: new Date().toISOString() }),
+      { merge: true }
+    );
+  } catch (err) {
+    console.warn('Direct Firestore revoke error:', err);
+  }
+
   try {
     await fetch('/api/screens/revoke', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ screenId }),
     });
-  } catch (err) {
-    console.warn('Error revoking screen via API:', err);
+  } catch {
+    // ignore
   }
 }
 
 export async function upsertGroupFirestore(group: ScreenGroup): Promise<void> {
+  try {
+    await setDoc(doc(db, 'groups', group.id), sanitizeForFirestore(group), { merge: true });
+  } catch (err) {
+    console.warn('Direct Firestore group upsert error:', err);
+  }
+
   try {
     await fetch('/api/screens/groups', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(group),
     });
-  } catch (err) {
-    console.warn('Error syncing group via API:', err);
+  } catch {
+    // ignore
   }
 }
 
 export async function deleteGroupFirestore(groupId: string): Promise<void> {
   try {
+    await deleteDoc(doc(db, 'groups', groupId));
+  } catch (err) {
+    console.warn('Direct Firestore delete group error:', err);
+  }
+
+  try {
     await fetch(`/api/screens/groups/${encodeURIComponent(groupId)}`, {
       method: 'DELETE',
     });
-  } catch (err) {
-    console.warn('Error deleting group via API:', err);
+  } catch {
+    // ignore
   }
 }
 
 export async function deleteScreenFirestore(screenId: string): Promise<void> {
   try {
+    await deleteDoc(doc(db, 'screens', screenId));
+  } catch (err) {
+    console.warn('Direct Firestore delete screen error:', err);
+  }
+
+  try {
     await fetch(`/api/screens/devices/${encodeURIComponent(screenId)}`, {
       method: 'DELETE',
     });
-  } catch (err) {
-    console.warn('Error deleting screen via API:', err);
+  } catch {
+    // ignore
   }
 }
 
@@ -102,6 +358,20 @@ export async function publishConfigFirestore(
   config: any,
   historyItem: PublishHistoryItem
 ): Promise<void> {
+  // 1. Save config to Firestore directly
+  await saveGlobalConfigFirestore(config);
+
+  // 2. Add history entry
+  try {
+    const histId = 'hist-' + Date.now();
+    await setDoc(doc(db, 'history', histId), sanitizeForFirestore({ id: histId, ...historyItem }), {
+      merge: true,
+    });
+  } catch (err) {
+    console.warn('Direct Firestore publish history log error:', err);
+  }
+
+  // 3. API fallback
   try {
     await fetch('/api/screens/publish', {
       method: 'POST',
@@ -114,12 +384,21 @@ export async function publishConfigFirestore(
         publisherName: historyItem.publisherName,
       }),
     });
-  } catch (err) {
-    console.warn('Error publishing config via API:', err);
+  } catch {
+    // ignore
   }
 }
 
 export async function logHistoryFirestore(item: PublishHistoryItem): Promise<void> {
+  try {
+    const histId = 'hist-' + Date.now();
+    await setDoc(doc(db, 'history', histId), sanitizeForFirestore({ id: histId, ...item }), {
+      merge: true,
+    });
+  } catch (err) {
+    console.warn('Direct Firestore log history error:', err);
+  }
+
   try {
     await fetch('/api/history/log', {
       method: 'POST',
@@ -132,8 +411,8 @@ export async function logHistoryFirestore(item: PublishHistoryItem): Promise<voi
         publisherName: item.publisherName,
       }),
     });
-  } catch (err) {
-    console.warn('Error logging history via API:', err);
+  } catch {
+    // ignore
   }
 }
 
@@ -142,12 +421,29 @@ export async function getFirestoreUser(
 ): Promise<{ email: string; passwordHash: string; role: 'admin' | 'operator'; name: string } | null> {
   try {
     const cleanId = usernameOrEmail.toLowerCase().trim();
+    const userDocRef = doc(db, 'users', cleanId);
+    const uSnap = await getDoc(userDocRef);
+
+    if (uSnap.exists()) {
+      const uData = uSnap.data();
+      return {
+        email: cleanId,
+        passwordHash: uData.passwordHash || uData.password || '',
+        role: uData.role || (cleanId.includes('admin') ? 'admin' : 'operator'),
+        name: uData.name || cleanId,
+      };
+    }
+
     if (cleanId === 'admin' || cleanId.includes('admin')) {
       return { email: cleanId, passwordHash: '', role: 'admin', name: 'Administrator' };
     }
     return { email: cleanId, passwordHash: '', role: 'operator', name: cleanId };
   } catch {
-    return null;
+    const cleanId = usernameOrEmail.toLowerCase().trim();
+    if (cleanId === 'admin' || cleanId.includes('admin')) {
+      return { email: cleanId, passwordHash: '', role: 'admin', name: 'Administrator' };
+    }
+    return { email: cleanId, passwordHash: '', role: 'operator', name: cleanId };
   }
 }
 
@@ -158,6 +454,23 @@ export async function updateFirestoreUserPassword(
   name: string
 ): Promise<void> {
   try {
+    const cleanId = usernameOrEmail.toLowerCase().trim();
+    await setDoc(
+      doc(db, 'users', cleanId),
+      sanitizeForFirestore({
+        email: cleanId,
+        passwordHash: newPasswordHash,
+        role,
+        name,
+        updatedAt: new Date().toISOString(),
+      }),
+      { merge: true }
+    );
+  } catch (err) {
+    console.warn('Direct Firestore user update error:', err);
+  }
+
+  try {
     await fetch('/api/auth/change-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -167,7 +480,7 @@ export async function updateFirestoreUserPassword(
         newPassword: newPasswordHash,
       }),
     });
-  } catch (err) {
-    console.warn('Error updating password via API:', err);
+  } catch {
+    // ignore
   }
 }

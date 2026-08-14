@@ -47,7 +47,9 @@ import {
   deleteScreenFirestore,
   upsertGroupFirestore,
   deleteGroupFirestore,
-  publishConfigFirestore
+  publishConfigFirestore,
+  subscribeGroupsFirestore,
+  subscribeScreensFirestore,
 } from '../lib/firebaseStore';
 
 interface ScreenGroupManagerProps {
@@ -182,14 +184,38 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
 
   useEffect(() => {
     fetchServerState();
-    
-    // Poll fast (3000ms) so newly connected screens show up in Admin instantly
-    const interval = setInterval(fetchServerState, 3000);
+
+    const unsubGroups = subscribeGroupsFirestore((fsGroups) => {
+      if (fsGroups && fsGroups.length > 0) {
+        setGroups(fsGroups);
+        setFormData((prev) => ({ ...prev, screenGroups: fsGroups }));
+        if (!hasInitializedSelection) {
+          setSelectedGroupIds([fsGroups[0].id]);
+          setHasInitializedSelection(true);
+        }
+      }
+    });
+
+    const unsubScreens = subscribeScreensFirestore((fsScreens) => {
+      if (fsScreens) {
+        const now = Date.now();
+        setScreens(
+          fsScreens.map((scr) => ({
+            ...scr,
+            status: now - (scr.lastSeen ? new Date(scr.lastSeen).getTime() : 0) < 60000 ? 'online' : 'offline',
+          }))
+        );
+      }
+    });
+
+    const interval = setInterval(fetchServerState, 30000);
 
     return () => {
+      unsubGroups();
+      unsubScreens();
       clearInterval(interval);
     };
-  }, [fetchServerState]);
+  }, [fetchServerState, hasInitializedSelection, setFormData]);
 
   // Manual refresh helper
   const triggerManualRefresh = () => {

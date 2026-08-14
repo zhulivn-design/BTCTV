@@ -38,7 +38,14 @@ import { ScreenGroupManager } from './ScreenGroupManager';
 import { DashboardView } from './DashboardView';
 import { FirestoreLogsView } from './FirestoreLogsView';
 import { FirebaseDiagnosticPanel } from './FirebaseDiagnosticPanel';
-import { logHistoryFirestore, getFirestoreUser, updateFirestoreUserPassword, fetchFirestoreState } from '../lib/firebaseStore';
+import {
+  logHistoryFirestore,
+  getFirestoreUser,
+  updateFirestoreUserPassword,
+  fetchFirestoreState,
+  subscribeGroupsFirestore,
+  subscribeGlobalConfigFirestore,
+} from '../lib/firebaseStore';
 
 interface TVSettingsModalProps {
   config: TVConfig;
@@ -77,7 +84,7 @@ export const TVSettingsModal: React.FC<TVSettingsModalProps> = ({
   const [isPinUnlocked, setIsPinUnlocked] = useState(!config.kioskLock || !config.pinCode);
   const [pinError, setPinError] = useState('');
 
-  // Fetch screen groups and keep them synced in real-time
+  // Fetch screen groups & config and keep them synced in real-time
   useEffect(() => {
     let synced = false;
     const loadState = async () => {
@@ -115,25 +122,34 @@ export const TVSettingsModal: React.FC<TVSettingsModalProps> = ({
     loadState();
 
     // Set up real-time listener for screen groups in Firestore
-    // REMOVED: Real-time listener to prevent quota issues
-    // const groupsCol = collection(db, 'groups');
-    // const unsubscribe = onSnapshot(groupsCol, (snapshot) => {
-    //   const fsGroups: any[] = [];
-    //   snapshot.forEach((docSnap) => {
-    //     fsGroups.push({ id: docSnap.id, ...docSnap.data() });
-    //   });
-    //   if (fsGroups.length > 0) {
-    //     setFormData((prev) => ({
-    //       ...prev,
-    //       screenGroups: fsGroups,
-    //     }));
-    //   }
-    // }, (error) => {
-    //   console.warn('Real-time groups sync notice:', error);
-    // });
+    const unsubGroups = subscribeGroupsFirestore((fsGroups) => {
+      if (fsGroups && fsGroups.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          screenGroups: fsGroups,
+        }));
+      }
+    });
 
-    // return () => unsubscribe();
-    return () => {};
+    const unsubConfig = subscribeGlobalConfigFirestore((remoteConfig) => {
+      if (remoteConfig) {
+        setFormData((prev) => {
+          // Keep current active tab edits but sync underlying groups & buildings
+          return {
+            ...remoteConfig,
+            ...prev,
+            slides: remoteConfig.slides || prev.slides,
+            buildings: remoteConfig.buildings || prev.buildings,
+            screenGroups: remoteConfig.screenGroups || prev.screenGroups,
+          };
+        });
+      }
+    });
+
+    return () => {
+      unsubGroups();
+      unsubConfig();
+    };
   }, []);
 
   // User Authentication State - Restore from localStorage if within 10 minutes of last closed
