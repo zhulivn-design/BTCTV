@@ -256,7 +256,7 @@ function hashSha256Server(text: string): string {
 }
 
 function normalizePasswordHash(pwd: string): string {
-  if (!pwd) return hashSha256Server('1234');
+  if (!pwd) return "";
   const trimmed = pwd.trim();
   if (/^[a-fA-F0-9]{64}$/.test(trimmed)) {
     return trimmed.toLowerCase();
@@ -266,10 +266,7 @@ function normalizePasswordHash(pwd: string): string {
 
 const USERS_FILE = path.join(process.cwd(), "users.json");
 
-let usersStore: UserAccount[] = [
-  { email: 'admin', password: hashSha256Server('1234'), role: 'admin', name: 'Quản trị viên (Admin)' },
-  { email: 'user', password: hashSha256Server('1234'), role: 'operator', name: 'Người dùng (User)' }
-];
+let usersStore: UserAccount[] = [];
 
 async function syncUserToFirestore(user: UserAccount) {
   if (isFirestoreQuotaExhausted) return;
@@ -303,7 +300,7 @@ async function loadUsersFromFirestore() {
       const fsUsers: UserAccount[] = [];
       snap.forEach((d) => {
         const data = d.data();
-        const rawPwd = data.passwordHash || data.password || '1234';
+        const rawPwd = data.passwordHash || data.password || '';
         fsUsers.push({
           email: d.id,
           password: normalizePasswordHash(rawPwd),
@@ -336,7 +333,7 @@ function loadUsers() {
       if (Array.isArray(parsed) && parsed.length > 0) {
         usersStore = parsed.map((u: any) => ({
           ...u,
-          password: normalizePasswordHash(u.password || '1234')
+          password: normalizePasswordHash(u.password || '')
         }));
       }
     } else {
@@ -352,7 +349,7 @@ function saveUsers() {
   try {
     const hashedStore = usersStore.map(u => ({
       ...u,
-      password: normalizePasswordHash(u.password || '1234')
+      password: normalizePasswordHash(u.password || '')
     }));
     fs.writeFileSync(USERS_FILE, JSON.stringify(hashedStore, null, 2), 'utf8');
   } catch (err) {
@@ -774,15 +771,7 @@ app.get("/api/debug/system-status", async (req, res) => {
       if (d.id === 'admin') {
         const data = d.data();
         const pwd = data.passwordHash || data.password || '';
-        const sha1234 = hashSha256Server('1234');
-        const doubleSha1234 = hashSha256Server(sha1234);
-        if (pwd === sha1234) {
-          adminPwdType = '1234 (standard sha256)';
-        } else if (pwd === doubleSha1234) {
-          adminPwdType = '1234 (double sha256 - legacy bug)';
-        } else {
-          adminPwdType = `Custom password set (Hash: ${pwd.substring(0, 8)}...)`;
-        }
+        adminPwdType = `Custom password set (Hash: ${pwd.substring(0, 8)}...)`;
       }
     });
 

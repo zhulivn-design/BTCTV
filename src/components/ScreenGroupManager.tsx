@@ -208,12 +208,12 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
       }
     });
 
-    const interval = setInterval(fetchServerState, 30000);
+    // const interval = setInterval(fetchServerState, 30000);
 
     return () => {
       unsubGroups();
       unsubScreens();
-      clearInterval(interval);
+      // clearInterval(interval);
     };
   }, [fetchServerState, hasInitializedSelection, setFormData]);
 

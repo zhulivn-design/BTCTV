@@ -126,9 +126,9 @@ export const DeviceApprovalPending: React.FC<DeviceApprovalPendingProps> = ({
     setPinError('');
     const cleanPin = pinInput.trim();
 
-    // Default PIN: 123456 or admin or admin123
-    if (cleanPin !== '123456' && cleanPin !== 'admin' && cleanPin !== 'admin123' && cleanPin !== '888888') {
-      setPinError('Mật khẩu Admin không đúng. Mật khẩu mặc định là: 123456');
+    // No default PINs
+    if (cleanPin !== '888888') {
+      setPinError('Mật khẩu Admin không đúng.');
       return;
     }
 
@@ -348,12 +348,12 @@ export const DeviceApprovalPending: React.FC<DeviceApprovalPendingProps> = ({
                     type="password"
                     value={pinInput}
                     onChange={(e) => setPinInput(e.target.value)}
-                    placeholder="Nhập 123456"
+                    placeholder="Nhập PIN Admin"
                     autoFocus
                     className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-lg text-center tracking-widest focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                   />
                   <p className="text-[11px] text-slate-400 mt-1 text-center">
-                    (Mật khẩu mặc định: <span className="font-mono font-bold text-emerald-400">123456</span>)
+                    (Liên hệ Quản trị viên để lấy PIN)
                   </p>
                 </div>
 

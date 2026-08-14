@@ -249,14 +249,12 @@ export const TVSettingsModal: React.FC<TVSettingsModalProps> = ({
 
     // Client-side fallback authentication for static / Firebase hosting
     const inputHash = await hashSha256Client(inputPass);
-    const defaultHash1234 = await hashSha256Client('1234');
-
+    
     // 1. Try Firestore user check
     try {
       const fsUser = await getFirestoreUser(inputUser);
-      if (fsUser && (fsUser.passwordHash || (fsUser as any).password)) {
-        const storedPwd = fsUser.passwordHash || (fsUser as any).password;
-        if (inputHash === storedPwd || (inputHash.length === 64 && inputHash === storedPwd)) {
+      if (fsUser && fsUser.passwordHash) {
+        if (inputHash === fsUser.passwordHash || (inputHash.length === 64 && inputHash === fsUser.passwordHash)) {
           setCurrentUser({
             email: fsUser.email,
             name: fsUser.name,
@@ -272,30 +270,7 @@ export const TVSettingsModal: React.FC<TVSettingsModalProps> = ({
       // Ignore Firestore check error
     }
 
-    const adminStoredHash = localStorage.getItem('tv_signage_admin_password_hash') || defaultHash1234;
-    const userStoredHash = localStorage.getItem('tv_signage_user_password_hash') || defaultHash1234;
-
-    if ((inputUser === 'admin' || inputUser === 'admin@btc.gov.vn' || inputUser === 'zhulivn@gmail.com') && inputHash === adminStoredHash) {
-      const user = {
-        email: 'admin',
-        name: 'Quản trị viên (Admin)',
-        role: 'admin' as const,
-      };
-      setCurrentUser(user);
-      setEmailInput('');
-      setPasswordInput('');
-    } else if ((inputUser === 'user' || inputUser === 'operator@gmail.com' || inputUser === 'user@btc.gov.vn') && inputHash === userStoredHash) {
-      const user = {
-        email: 'user',
-        name: 'Người dùng (User)',
-        role: 'operator' as const,
-      };
-      setCurrentUser(user);
-      setEmailInput('');
-      setPasswordInput('');
-    } else {
-      setAuthError('Tài khoản hoặc mật khẩu không chính xác!');
-    }
+    setAuthError('Tài khoản hoặc mật khẩu không chính xác!');
     setIsLoggingIn(false);
   };
 
@@ -358,13 +333,12 @@ export const TVSettingsModal: React.FC<TVSettingsModalProps> = ({
     // Client-side fallback update for static / Firebase hosting
     const oldHash = await hashSha256Client(oldPassword);
     const newHash = await hashSha256Client(newPassword);
-    const defaultHash1234 = await hashSha256Client('1234');
 
     const storageKey = (currentUser.role === 'admin' || currentUser.email === 'admin')
       ? 'tv_signage_admin_password_hash'
       : 'tv_signage_user_password_hash';
 
-    let currentStoredHash = localStorage.getItem(storageKey) || defaultHash1234;
+    let currentStoredHash = localStorage.getItem(storageKey);
 
     // Check Firestore for existing password hash
     try {
@@ -763,7 +737,7 @@ export const TVSettingsModal: React.FC<TVSettingsModalProps> = ({
                     required
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
-                    placeholder="Nhập mật khẩu (mặc định: 1234)..."
+                    placeholder="Nhập mật khẩu..."
                     className="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-cyan-400"
                   />
                 </div>
@@ -795,19 +769,7 @@ export const TVSettingsModal: React.FC<TVSettingsModalProps> = ({
               </form>
 
               {/* Quick Helper Credentials Card */}
-              <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-2xl w-full text-left space-y-2.5">
-                <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">Tài khoản mặc định:</span>
-                <div className="space-y-1.5 text-[11px] text-slate-400">
-                  <div className="flex justify-between items-center">
-                    <span>🔑 <strong>Tài khoản 1 (Admin):</strong> <code className="text-slate-200 font-bold bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">admin</code></span>
-                    <span className="font-mono text-cyan-300">mật khẩu: <strong>1234</strong></span>
-                  </div>
-                  <div className="flex justify-between items-center border-t border-slate-900 pt-1.5">
-                    <span>👤 <strong>Tài khoản 2 (User):</strong> <code className="text-slate-200 font-bold bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">user</code></span>
-                    <span className="font-mono text-cyan-300">mật khẩu: <strong>1234</strong></span>
-                  </div>
-                </div>
-              </div>
+              {/* Removed default credentials card as requested */}
 
               {/* Technical Support Information */}
               <div className="p-4 bg-cyan-950/30 border border-cyan-800/40 rounded-2xl w-full text-left flex items-center gap-3">

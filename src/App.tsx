@@ -236,7 +236,7 @@ export default function App() {
       status: 'online',
       approved: isDeviceApproved,
     }).catch(() => {});
-  }, [screenId, screenGroupId, config.selectedBuildingId, config.selectedZone, isDeviceApproved]);
+  }, [screenId, screenGroupId, isDeviceApproved]); // Removed config dependencies
 
   // Device heartbeat effect: lightweight HTTP ping to Express server without writing to Firestore
   useEffect(() => {
