@@ -35,51 +35,8 @@ export const DeviceApprovalPending: React.FC<DeviceApprovalPendingProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // Automated polling to check approval status in real-time
-  useEffect(() => {
-    let isMounted = true;
-    const checkApproval = async () => {
-      try {
-        const resp = await fetch('/api/screens/heartbeat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            screenId,
-            name: `Màn hình ${screenId}`,
-            buildingId: 'building-a',
-            zone: 'lobby',
-          }),
-        });
-
-        const contentType = resp.headers.get('content-type');
-        if (resp.ok && contentType && contentType.includes('application/json')) {
-          const data = await resp.json();
-          if (data.ok && data.approved === true && isMounted) {
-            setCheckMessage('🎉 Màn hình đã được phê duyệt! Đang chuyển hướng...');
-            sessionStorage.setItem('android_tv_approved', 'true');
-            localStorage.setItem('android_tv_approved', 'true');
-            setTimeout(() => {
-              if (onApproved) {
-                onApproved();
-              } else {
-                window.location.reload();
-              }
-            }, 500);
-          }
-        }
-      } catch (e) {
-        // Silently ignore background polling errors
-      }
-    };
-
-    checkApproval();
-    const interval = setInterval(checkApproval, 2500);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [screenId, onApproved]);
-
+  // Automated polling removed to reduce server load
+  
   const handleManualCheck = async () => {
     setIsChecking(true);
     setCheckMessage('Đang kiểm tra kết nối với máy chủ...');
@@ -204,7 +161,7 @@ export const DeviceApprovalPending: React.FC<DeviceApprovalPendingProps> = ({
             Màn Hình Trình Chiếu Nội Dung
           </h1>
           <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-            Thiết bị này cần được phê duyệt trước khi hiển thị nội dung. Quản trị viên có thể quét mã QR hoặc duyệt trên trang quản trị.
+            Thiết bị này cần được phê duyệt trước khi hiển thị nội dung. Sau khi liên hệ Quản trị viên kích hoạt, vui lòng nhấn 'Kiểm Tra' để truy cập.
           </p>
         </div>
 
