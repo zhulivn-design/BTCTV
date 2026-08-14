@@ -143,6 +143,7 @@ function recordFirestoreUsage(
 }
 
 function handleFirestoreError(err: any, actionName: string, operation: 'read' | 'write' | 'delete' = 'read', collectionName: string = 'system') {
+  console.error(`[Firestore Error - ${actionName} - ${collectionName}]:`, err);
   if (
     err?.code === 'resource-exhausted' ||
     err?.code === 8 ||
@@ -157,7 +158,6 @@ function handleFirestoreError(err: any, actionName: string, operation: 'read' | 
     }
   } else {
     recordFirestoreUsage(operation, collectionName, actionName, 'error', err?.message || String(err));
-    console.error(`[Firestore Error - ${actionName}]:`, err);
   }
 }
 
@@ -292,8 +292,10 @@ async function syncUserToFirestore(user: UserAccount) {
 
 async function loadUsersFromFirestore() {
   if (isFirestoreQuotaExhausted) return;
+  console.log("Starting loadUsersFromFirestore...");
   try {
     const snap = await getDocs(collection(db, 'users'));
+    console.log(`loadUsersFromFirestore: Found ${snap.size} docs.`);
     recordFirestoreUsage('read', 'users', undefined, 'success', undefined, Math.max(1, snap.size));
     if (!snap.empty) {
       const fsUsers: UserAccount[] = [];
@@ -310,11 +312,13 @@ async function loadUsersFromFirestore() {
       if (fsUsers.length > 0) {
         usersStore = fsUsers;
         saveUsers();
+        console.log("loadUsersFromFirestore: Updated usersStore.");
       }
     } else {
+      console.log("loadUsersFromFirestore: No users found, seeding.");
       // Seed default accounts into Firestore
       for (const u of usersStore) {
-        await syncUserToFirestore(u).catch(() => {});
+        await syncUserToFirestore(u).catch((e) => console.error("Seed error:", e));
       }
     }
   } catch (err: any) {
@@ -514,8 +518,10 @@ async function syncGlobalConfigToFirestore(config: any) {
 
 async function loadGroupsFromFirestore() {
   if (isFirestoreQuotaExhausted) return;
+  console.log("Starting loadGroupsFromFirestore...");
   try {
     const snap = await getDocs(collection(db, 'groups'));
+    console.log(`loadGroupsFromFirestore: Found ${snap.size} docs.`);
     recordFirestoreUsage('read', 'groups', undefined, 'success', undefined, Math.max(1, snap.size));
     const fsGroups: ScreenGroupData[] = [];
     snap.forEach((d) => {
@@ -526,13 +532,14 @@ async function loadGroupsFromFirestore() {
     for (const localG of screenGroupsStore) {
       if (localG && localG.id && !combinedGroups.some(g => g.id === localG.id)) {
         combinedGroups.push(localG);
-        syncGroupToFirestore(localG).catch(() => {});
+        syncGroupToFirestore(localG).catch((e) => console.error("Sync error:", e));
       }
     }
 
     if (combinedGroups.length > 0) {
       screenGroupsStore = combinedGroups;
       saveGroups();
+      console.log(`loadGroupsFromFirestore: Updated screenGroupsStore with ${screenGroupsStore.length} groups.`);
     }
   } catch (err: any) {
     handleFirestoreError(err, 'loadGroupsFromFirestore', 'read', 'groups');
