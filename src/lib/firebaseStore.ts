@@ -29,7 +29,7 @@ export function withTimeout<T>(promise: Promise<T>, timeoutMs: number = 4000, fa
   return new Promise((resolve) => {
     let timer: NodeJS.Timeout | null = setTimeout(() => {
       timer = null;
-      console.warn(`Firestore/API operation timed out after ${timeoutMs}ms`);
+      console.warn(`Firestore operation timed out after ${timeoutMs}ms`);
       resolve(fallbackValue as T);
     }, timeoutMs);
 
@@ -43,24 +43,11 @@ export function withTimeout<T>(promise: Promise<T>, timeoutMs: number = 4000, fa
       .catch((err) => {
         if (timer) {
           clearTimeout(timer);
-          console.warn('Firestore/API operation error:', err);
+          console.warn('Firestore operation error:', err);
           resolve(fallbackValue as T);
         }
       });
   });
-}
-
-// Safe background fetch with AbortController timeout (non-blocking)
-export function safeApiFetch(url: string, options: RequestInit = {}, timeoutMs: number = 2500): void {
-  try {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeoutMs);
-    fetch(url, { ...options, signal: controller.signal })
-      .then(() => clearTimeout(id))
-      .catch(() => clearTimeout(id));
-  } catch {
-    // Ignore fetch errors
-  }
 }
 
 /**
@@ -86,11 +73,7 @@ export async function saveGlobalConfigFirestore(config: TVConfig): Promise<boole
   }
 
   // 2. Secondary Express API call in background (non-blocking)
-  safeApiFetch('/api/config', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ config }),
-  });
+  // safeApiFetch removed
 
   return true;
 }
@@ -264,12 +247,6 @@ export async function upsertScreenFirestore(screen: ScreenDevice): Promise<void>
   } catch (err) {
     console.warn('Direct Firestore screen upsert error:', err);
   }
-
-  safeApiFetch('/api/screens/devices', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(screen),
-  });
 }
 
 export async function approveScreenFirestore(
@@ -295,12 +272,6 @@ export async function approveScreenFirestore(
   } catch (err) {
     console.warn('Direct Firestore approve screen error:', err);
   }
-
-  safeApiFetch('/api/screens/approve', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ screenId, name, groupId, buildingId, zone }),
-  });
 }
 
 export async function revokeScreenFirestore(screenId: string): Promise<void> {
@@ -313,12 +284,6 @@ export async function revokeScreenFirestore(screenId: string): Promise<void> {
   } catch (err) {
     console.warn('Direct Firestore revoke error:', err);
   }
-
-  safeApiFetch('/api/screens/revoke', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ screenId }),
-  });
 }
 
 export async function upsertGroupFirestore(group: ScreenGroup): Promise<void> {
@@ -343,12 +308,6 @@ export async function upsertGroupFirestore(group: ScreenGroup): Promise<void> {
   } catch (err) {
     console.warn('Direct Firestore group upsert error:', err);
   }
-
-  safeApiFetch('/api/screens/groups', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(group),
-  });
 }
 
 export async function deleteGroupFirestore(groupId: string): Promise<void> {
@@ -364,10 +323,6 @@ export async function deleteGroupFirestore(groupId: string): Promise<void> {
   } catch (err) {
     console.warn('Direct Firestore delete group error:', err);
   }
-
-  safeApiFetch(`/api/screens/groups/${encodeURIComponent(groupId)}`, {
-    method: 'DELETE',
-  });
 }
 
 export async function deleteScreenFirestore(screenId: string): Promise<void> {
@@ -376,10 +331,6 @@ export async function deleteScreenFirestore(screenId: string): Promise<void> {
   } catch (err) {
     console.warn('Direct Firestore delete screen error:', err);
   }
-
-  safeApiFetch(`/api/screens/devices/${encodeURIComponent(screenId)}`, {
-    method: 'DELETE',
-  });
 }
 
 export async function publishConfigFirestore(
@@ -404,17 +355,7 @@ export async function publishConfigFirestore(
   }
 
   // 3. API fallback in background (non-blocking)
-  safeApiFetch('/api/screens/publish', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      targetType: 'all',
-      config,
-      title: historyItem.targetSummary || 'Đẩy cấu hình',
-      publisherEmail: historyItem.publisherEmail,
-      publisherName: historyItem.publisherName,
-    }),
-  });
+  // safeApiFetch removed
 }
 
 export async function logHistoryFirestore(item: PublishHistoryItem): Promise<void> {
@@ -430,17 +371,8 @@ export async function logHistoryFirestore(item: PublishHistoryItem): Promise<voi
     console.warn('Direct Firestore log history notice:', err);
   }
 
-  safeApiFetch('/api/history/log', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      title: (item.configSnapshot as any)?.title || item.targetSummary || 'Thao tác hệ thống',
-      targetSummary: item.targetSummary,
-      affectedScreensCount: item.affectedScreensCount,
-      publisherEmail: item.publisherEmail,
-      publisherName: item.publisherName,
-    }),
-  });
+  // 3. API fallback in background (non-blocking)
+  // safeApiFetch removed
 }
 
 export async function getFirestoreUser(
