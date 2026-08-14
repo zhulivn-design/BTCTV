@@ -273,6 +273,7 @@ let usersStore: UserAccount[] = [
 
 async function syncUserToFirestore(user: UserAccount) {
   if (isFirestoreQuotaExhausted) return;
+  console.log(`[DEBUG - syncUserToFirestore]: Syncing user ${user.email}...`);
   try {
     const docId = user.email.toLowerCase().trim();
     const pwdHash = normalizePasswordHash(user.password);
@@ -285,6 +286,7 @@ async function syncUserToFirestore(user: UserAccount) {
       updatedAt: Date.now()
     }, { merge: true });
     recordFirestoreUsage('write', 'users', docId);
+    console.log(`[DEBUG - syncUserToFirestore]: Successfully synced user ${user.email}.`);
   } catch (err: any) {
     handleFirestoreError(err, 'syncUserToFirestore', 'write', 'users');
   }
@@ -500,6 +502,7 @@ loadGroups();
 
 async function syncGlobalConfigToFirestore(config: any) {
   if (isFirestoreQuotaExhausted || !config) return;
+  console.log(`[DEBUG - syncGlobalConfigToFirestore]: Syncing global config...`);
   try {
     const generalConfig = { ...config, buildings: [], slides: [] };
     const buildingsConfig = { buildings: config.buildings || [] };
@@ -511,6 +514,7 @@ async function syncGlobalConfigToFirestore(config: any) {
       setDoc(doc(db, 'settings', 'tv_config_slides'), sanitizeForFirestore(slidesConfig)),
     ]);
     recordFirestoreUsage('write', 'settings', 'tv_config_*', 'success', undefined, 3);
+    console.log(`[DEBUG - syncGlobalConfigToFirestore]: Successfully synced global config.`);
   } catch (err: any) {
     handleFirestoreError(err, 'syncGlobalConfigToFirestore', 'write', 'settings');
   }
@@ -548,10 +552,12 @@ async function loadGroupsFromFirestore() {
 
 async function syncGroupToFirestore(group: ScreenGroupData) {
   if (isFirestoreQuotaExhausted) return;
+  console.log(`[DEBUG - syncGroupToFirestore]: Syncing group ${group.id}...`);
   try {
     await setDoc(doc(db, 'groups', group.id), sanitizeForFirestore(group), { merge: true });
     recordFirestoreUsage('write', 'groups', group.id);
     saveGroups();
+    console.log(`[DEBUG - syncGroupToFirestore]: Successfully synced group ${group.id}.`);
   } catch (err: any) {
     handleFirestoreError(err, 'syncGroupToFirestore', 'write', 'groups');
   }
@@ -1611,11 +1617,18 @@ app.get("/api/check-url", async (req, res) => {
 });
 
 async function start() {
+  console.log("[DEBUG - App Initialization]: Starting application initialization...");
   await loadGlobalConfig();
+  console.log("[DEBUG - App Initialization]: Global config loaded.");
   await loadGroupsFromFirestore();
+  console.log("[DEBUG - App Initialization]: Groups loaded.");
   await loadScreensFromFirestore();
+  console.log("[DEBUG - App Initialization]: Screens loaded.");
   await loadUsersFromFirestore();
+  console.log("[DEBUG - App Initialization]: Users loaded.");
   await loadMediaFromFirestore();
+  console.log("[DEBUG - App Initialization]: Media loaded.");
+
   if (process.env.NODE_ENV !== "production") {
     const isHmrDisabled = process.env.DISABLE_HMR === "true";
     const vite = await createViteServer({
