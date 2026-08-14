@@ -13,20 +13,35 @@ try {
 } catch {
   // ignore
 }
-const firebaseConfigData = JSON.parse(fs.readFileSync(path.join(process.cwd(), "firebase-applet-config.json"), "utf8"));
+console.log("Initializing Firebase...");
+let firebaseConfigData;
+try {
+  const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+  if (fs.existsSync(configPath)) {
+    firebaseConfigData = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    console.log("Firebase config loaded successfully.");
+  } else {
+    console.error("Firebase config file not found at:", configPath);
+    firebaseConfigData = {}; // Or handle differently
+  }
+} catch (e) {
+  console.error("Error reading Firebase config file:", e);
+  firebaseConfigData = {};
+}
 
 const firebaseConfig = {
-  apiKey: firebaseConfigData.apiKey,
-  authDomain: firebaseConfigData.authDomain,
-  projectId: firebaseConfigData.projectId,
-  storageBucket: firebaseConfigData.storageBucket,
-  messagingSenderId: firebaseConfigData.messagingSenderId,
-  appId: firebaseConfigData.appId,
+  apiKey: firebaseConfigData.apiKey || "",
+  authDomain: firebaseConfigData.authDomain || "",
+  projectId: firebaseConfigData.projectId || "",
+  storageBucket: firebaseConfigData.storageBucket || "",
+  messagingSenderId: firebaseConfigData.messagingSenderId || "",
+  appId: firebaseConfigData.appId || "",
   databaseId: firebaseConfigData.firestoreDatabaseId || '(default)'
 };
 
 const fbApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(fbApp, firebaseConfigData.firestoreDatabaseId || '(default)');
+console.log("Firebase initialized successfully.");
 
 let isFirestoreQuotaExhausted = false;
 
@@ -73,6 +88,7 @@ function loadFirestoreUsageStores() {
 }
 
 function saveFirestoreUsageStores() {
+  if (process.env.VERCEL) return;
   try {
     fs.writeFileSync(DAILY_USAGE_FILE, JSON.stringify(firestoreDailyUsage, null, 2), 'utf8');
     fs.writeFileSync(API_LOGS_FILE, JSON.stringify(firestoreApiLogs.slice(0, 200), null, 2), 'utf8');
@@ -326,6 +342,7 @@ function loadUsers() {
 }
 
 function saveUsers() {
+  if (process.env.VERCEL) return;
   try {
     const hashedStore = usersStore.map(u => ({
       ...u,
@@ -363,6 +380,7 @@ function loadMedia() {
 }
 
 function saveMedia() {
+  if (process.env.VERCEL) return;
   try {
     const list = Array.from(uploadedMedia.values());
     fs.writeFileSync(MEDIA_FILE, JSON.stringify(list, null, 2), 'utf8');
@@ -466,6 +484,7 @@ function loadGroups() {
 }
 
 function saveGroups() {
+  if (process.env.VERCEL) return;
   try {
     fs.writeFileSync(GROUPS_FILE, JSON.stringify(screenGroupsStore, null, 2), 'utf8');
   } catch (err) {
@@ -558,6 +577,7 @@ function loadScreens() {
 }
 
 function saveScreens() {
+  if (process.env.VERCEL) return;
   try {
     fs.writeFileSync(SCREENS_FILE, JSON.stringify(screenDevicesStore, null, 2), 'utf8');
   } catch (err) {
@@ -572,6 +592,7 @@ const CONFIG_FILE = path.join(process.cwd(), "tv_config.json");
 let globalTvConfig: any = null;
 
 function saveGlobalConfig(config: any) {
+  if (process.env.VERCEL) return;
   try {
     globalTvConfig = config;
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), "utf8");
@@ -1607,9 +1628,21 @@ async function start() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Android TV Web App listening on http://0.0.0.0:${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Android TV Web App listening on http://0.0.0.0:${PORT}`);
+    });
+  }
 }
 
-start();
+if (process.env.VERCEL) {
+  loadGlobalConfig().catch(() => {});
+  loadGroupsFromFirestore().catch(() => {});
+  loadScreensFromFirestore().catch(() => {});
+  loadUsersFromFirestore().catch(() => {});
+  loadMediaFromFirestore().catch(() => {});
+} else {
+  start();
+}
+
+export default app;

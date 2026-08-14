@@ -265,15 +265,11 @@ export async function upsertScreenFirestore(screen: ScreenDevice): Promise<void>
     console.warn('Direct Firestore screen upsert error:', err);
   }
 
-  try {
-    await fetch('/api/screens/devices', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(screen),
-    });
-  } catch {
-    // ignore
-  }
+  safeApiFetch('/api/screens/devices', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(screen),
+  });
 }
 
 export async function approveScreenFirestore(
@@ -300,15 +296,11 @@ export async function approveScreenFirestore(
     console.warn('Direct Firestore approve screen error:', err);
   }
 
-  try {
-    await fetch('/api/screens/approve', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ screenId, name, groupId, buildingId, zone }),
-    });
-  } catch {
-    // ignore
-  }
+  safeApiFetch('/api/screens/approve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ screenId, name, groupId, buildingId, zone }),
+  });
 }
 
 export async function revokeScreenFirestore(screenId: string): Promise<void> {
@@ -322,15 +314,11 @@ export async function revokeScreenFirestore(screenId: string): Promise<void> {
     console.warn('Direct Firestore revoke error:', err);
   }
 
-  try {
-    await fetch('/api/screens/revoke', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ screenId }),
-    });
-  } catch {
-    // ignore
-  }
+  safeApiFetch('/api/screens/revoke', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ screenId }),
+  });
 }
 
 export async function upsertGroupFirestore(group: ScreenGroup): Promise<void> {
@@ -356,15 +344,11 @@ export async function upsertGroupFirestore(group: ScreenGroup): Promise<void> {
     console.warn('Direct Firestore group upsert error:', err);
   }
 
-  try {
-    await fetch('/api/screens/groups', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(group),
-    });
-  } catch {
-    // ignore
-  }
+  safeApiFetch('/api/screens/groups', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(group),
+  });
 }
 
 export async function deleteGroupFirestore(groupId: string): Promise<void> {
@@ -381,13 +365,9 @@ export async function deleteGroupFirestore(groupId: string): Promise<void> {
     console.warn('Direct Firestore delete group error:', err);
   }
 
-  try {
-    await fetch(`/api/screens/groups/${encodeURIComponent(groupId)}`, {
-      method: 'DELETE',
-    });
-  } catch {
-    // ignore
-  }
+  safeApiFetch(`/api/screens/groups/${encodeURIComponent(groupId)}`, {
+    method: 'DELETE',
+  });
 }
 
 export async function deleteScreenFirestore(screenId: string): Promise<void> {
@@ -397,13 +377,9 @@ export async function deleteScreenFirestore(screenId: string): Promise<void> {
     console.warn('Direct Firestore delete screen error:', err);
   }
 
-  try {
-    await fetch(`/api/screens/devices/${encodeURIComponent(screenId)}`, {
-      method: 'DELETE',
-    });
-  } catch {
-    // ignore
-  }
+  safeApiFetch(`/api/screens/devices/${encodeURIComponent(screenId)}`, {
+    method: 'DELETE',
+  });
 }
 
 export async function publishConfigFirestore(

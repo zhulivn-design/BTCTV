@@ -65,30 +65,32 @@ export async function runFirebaseDiagnostics(): Promise<FirebaseDiagnosticResult
   let serverConfig: FirebaseDiagnosticResult['serverConfig'] = undefined;
   let serverFirestoreTest: FirebaseDiagnosticResult['serverFirestoreTest'] = undefined;
   try {
-    const res = await fetch('/api/firebase/info');
-    const contentType = res.headers.get('content-type') || '';
-    if (res.ok && contentType.includes('application/json')) {
-      const data = await res.json();
-      if (data && data.config) {
-        serverConfig = data.config;
+    const res = await fetch('/api/firebase/info').catch(() => null);
+    if (res && res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const data = await res.json().catch(() => null);
+        if (data && data.config) {
+          serverConfig = data.config;
+        }
       }
-    } else {
-      console.warn('Server endpoint /api/firebase/info returned non-JSON response (SPA Fallback or server restarting).');
     }
 
-    const statusRes = await fetch('/api/debug/system-status');
-    const statusContentType = statusRes.headers.get('content-type') || '';
-    if (statusRes.ok && statusContentType.includes('application/json')) {
-      const statusData = await statusRes.json();
-      if (statusData && statusData.firestoreDB) {
-        serverFirestoreTest = {
-          usersCount: statusData.firestoreDB.usersCount,
-          groupsCount: statusData.firestoreDB.groupsCount,
-        };
+    const statusRes = await fetch('/api/debug/system-status').catch(() => null);
+    if (statusRes && statusRes.ok) {
+      const statusContentType = statusRes.headers.get('content-type') || '';
+      if (statusContentType.includes('application/json')) {
+        const statusData = await statusRes.json().catch(() => null);
+        if (statusData && statusData.firestoreDB) {
+          serverFirestoreTest = {
+            usersCount: statusData.firestoreDB.usersCount,
+            groupsCount: statusData.firestoreDB.groupsCount,
+          };
+        }
       }
     }
-  } catch (e) {
-    console.warn('Could not fetch server firebase diagnostic endpoint:', e);
+  } catch {
+    // Silently continue if server diagnostic endpoints are unavailable on static hosting
   }
 
   const isServerConnected = Boolean(serverConfig);
