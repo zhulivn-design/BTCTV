@@ -72,6 +72,15 @@ export async function saveGlobalConfigFirestore(config: TVConfig): Promise<boole
   try {
     // 1. Direct write to Firestore settings/tv_config_v2 with 3.5s timeout safety
     await withTimeout(setDoc(doc(db, 'settings', 'tv_config_v2'), sanitized, { merge: true }), 3500);
+
+    // Also sync all groups to the groups collection
+    if (Array.isArray(config.screenGroups)) {
+      for (const grp of config.screenGroups) {
+        if (grp && grp.id) {
+          setDoc(doc(db, 'groups', grp.id), sanitizeForFirestore(grp), { merge: true }).catch(() => {});
+        }
+      }
+    }
   } catch (err) {
     console.warn('Direct Firestore save notice:', err);
   }
@@ -327,6 +336,22 @@ export async function revokeScreenFirestore(screenId: string): Promise<void> {
 export async function upsertGroupFirestore(group: ScreenGroup): Promise<void> {
   try {
     await setDoc(doc(db, 'groups', group.id), sanitizeForFirestore(group), { merge: true });
+
+    // Also sync with tv_config_v2 screenGroups array
+    const cfgSnap = await getDoc(doc(db, 'settings', 'tv_config_v2'));
+    if (cfgSnap.exists()) {
+      const currentConfig = cfgSnap.data() as TVConfig;
+      const existingGroups = currentConfig.screenGroups || [];
+      const idx = existingGroups.findIndex((g) => g.id === group.id);
+      let updatedGroups;
+      if (idx >= 0) {
+        updatedGroups = [...existingGroups];
+        updatedGroups[idx] = group;
+      } else {
+        updatedGroups = [...existingGroups, group];
+      }
+      await setDoc(doc(db, 'settings', 'tv_config_v2'), { screenGroups: updatedGroups }, { merge: true });
+    }
   } catch (err) {
     console.warn('Direct Firestore group upsert error:', err);
   }
@@ -345,6 +370,13 @@ export async function upsertGroupFirestore(group: ScreenGroup): Promise<void> {
 export async function deleteGroupFirestore(groupId: string): Promise<void> {
   try {
     await deleteDoc(doc(db, 'groups', groupId));
+
+    const cfgSnap = await getDoc(doc(db, 'settings', 'tv_config_v2'));
+    if (cfgSnap.exists()) {
+      const currentConfig = cfgSnap.data() as TVConfig;
+      const updatedGroups = (currentConfig.screenGroups || []).filter((g) => g.id !== groupId);
+      await setDoc(doc(db, 'settings', 'tv_config_v2'), { screenGroups: updatedGroups }, { merge: true });
+    }
   } catch (err) {
     console.warn('Direct Firestore delete group error:', err);
   }

@@ -123,7 +123,7 @@ export const TVSettingsModal: React.FC<TVSettingsModalProps> = ({
 
     // Set up real-time listener for screen groups in Firestore
     const unsubGroups = subscribeGroupsFirestore((fsGroups) => {
-      if (fsGroups && fsGroups.length > 0) {
+      if (Array.isArray(fsGroups)) {
         setFormData((prev) => ({
           ...prev,
           screenGroups: fsGroups,
@@ -134,13 +134,12 @@ export const TVSettingsModal: React.FC<TVSettingsModalProps> = ({
     const unsubConfig = subscribeGlobalConfigFirestore((remoteConfig) => {
       if (remoteConfig) {
         setFormData((prev) => {
-          // Keep current active tab edits but sync underlying groups & buildings
           return {
-            ...remoteConfig,
             ...prev,
+            ...remoteConfig,
             slides: remoteConfig.slides || prev.slides,
-            buildings: remoteConfig.buildings || prev.buildings,
-            screenGroups: remoteConfig.screenGroups || prev.screenGroups,
+            buildings: remoteConfig.buildings && remoteConfig.buildings.length > 0 ? remoteConfig.buildings : prev.buildings,
+            screenGroups: remoteConfig.screenGroups && remoteConfig.screenGroups.length > 0 ? remoteConfig.screenGroups : (prev.screenGroups || []),
           };
         });
       }

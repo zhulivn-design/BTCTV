@@ -95,7 +95,7 @@ export const BuildingManager: React.FC<BuildingManagerProps> = ({
 
   React.useEffect(() => {
     const buildingGroups = (formData.screenGroups || []).filter(
-      (g) => g.buildingId === selectedBldId
+      (g) => !g.buildingId || g.buildingId === selectedBldId || (formData.buildings?.length === 1)
     );
     if (buildingGroups.length > 0) {
       const hasSelected = buildingGroups.some(g => g.id === selectedGroupId);
@@ -624,7 +624,7 @@ export const BuildingManager: React.FC<BuildingManagerProps> = ({
           const currentZoneConfig =
             currentZoneKey === 'cabin' ? bld.cabinConfig : bld.lobbyConfig;
           const buildingGroups = (formData.screenGroups || []).filter(
-            (g) => g.buildingId === bld.id
+            (g) => !g.buildingId || g.buildingId === bld.id || (formData.buildings?.length === 1)
           );
 
           return (
