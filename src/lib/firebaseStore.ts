@@ -387,22 +387,15 @@ export async function getFirestoreUser(
       const uData = uSnap.data();
       return {
         email: cleanId,
-        passwordHash: uData.passwordHash || uData.password || '',
-        role: uData.role || (cleanId.includes('admin') ? 'admin' : 'operator'),
+        passwordHash: uData.passwordHash || '',
+        role: uData.role || 'operator',
         name: uData.name || cleanId,
       };
     }
-
-    if (cleanId === 'admin' || cleanId.includes('admin')) {
-      return { email: cleanId, passwordHash: '', role: 'admin', name: 'Administrator' };
-    }
-    return { email: cleanId, passwordHash: '', role: 'operator', name: cleanId };
-  } catch {
-    const cleanId = usernameOrEmail.toLowerCase().trim();
-    if (cleanId === 'admin' || cleanId.includes('admin')) {
-      return { email: cleanId, passwordHash: '', role: 'admin', name: 'Administrator' };
-    }
-    return { email: cleanId, passwordHash: '', role: 'operator', name: cleanId };
+    return null;
+  } catch (err) {
+    console.warn('Error fetching user:', err);
+    return null;
   }
 }
 
@@ -427,19 +420,5 @@ export async function updateFirestoreUserPassword(
     );
   } catch (err) {
     console.warn('Direct Firestore user update error:', err);
-  }
-
-  try {
-    await fetch('/api/auth/change-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: usernameOrEmail,
-        oldPassword: '',
-        newPassword: newPasswordHash,
-      }),
-    });
-  } catch {
-    // ignore
   }
 }
