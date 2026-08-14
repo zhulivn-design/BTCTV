@@ -257,11 +257,6 @@ export const DeviceApprovalPending: React.FC<DeviceApprovalPendingProps> = ({
         {/* Footer Meta Infos */}
         <div className="flex flex-wrap justify-center items-center gap-4 text-slate-400 text-xs border-t border-slate-900 w-full max-w-md pt-3">
           <div className="flex items-center gap-1.5">
-            <Radio className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-            <span>Đang chờ tín hiệu kích hoạt...</span>
-          </div>
-
-          <div className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-slate-400" />
             <span>{currentTime.toLocaleTimeString('vi-VN')}</span>
           </div>
