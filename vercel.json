@@ -2,7 +2,7 @@
   "version": 2,
   "functions": {
     "api/index.ts": {
-      "includeFiles": "firebase-applet-config.json"
+      "includeFiles": "firebase-applet-config.json,users.json,screens.json,groups.json,media.json,tv_config.json"
     }
   },
   "rewrites": [

@@ -1635,14 +1635,8 @@ async function start() {
   }
 }
 
-if (process.env.VERCEL) {
-  loadGlobalConfig().catch(() => {});
-  loadGroupsFromFirestore().catch(() => {});
-  loadScreensFromFirestore().catch(() => {});
-  loadUsersFromFirestore().catch(() => {});
-  loadMediaFromFirestore().catch(() => {});
-} else {
-  start();
-}
+start().catch(err => {
+  console.error("Failed to start server:", err);
+});
 
 export default app;
