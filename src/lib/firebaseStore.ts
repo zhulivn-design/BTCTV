@@ -24,45 +24,66 @@ export function sanitizeForFirestore(obj: any): any {
   return result;
 }
 
+// Helper to execute promises with a timeout safety net so the UI never hangs
+export function withTimeout<T>(promise: Promise<T>, timeoutMs: number = 4000, fallbackValue?: T): Promise<T> {
+  return new Promise((resolve) => {
+    let timer: NodeJS.Timeout | null = setTimeout(() => {
+      timer = null;
+      console.warn(`Firestore/API operation timed out after ${timeoutMs}ms`);
+      resolve(fallbackValue as T);
+    }, timeoutMs);
+
+    promise
+      .then((res) => {
+        if (timer) {
+          clearTimeout(timer);
+          resolve(res);
+        }
+      })
+      .catch((err) => {
+        if (timer) {
+          clearTimeout(timer);
+          console.warn('Firestore/API operation error:', err);
+          resolve(fallbackValue as T);
+        }
+      });
+  });
+}
+
+// Safe background fetch with AbortController timeout (non-blocking)
+export function safeApiFetch(url: string, options: RequestInit = {}, timeoutMs: number = 2500): void {
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    fetch(url, { ...options, signal: controller.signal })
+      .then(() => clearTimeout(id))
+      .catch(() => clearTimeout(id));
+  } catch {
+    // Ignore fetch errors
+  }
+}
+
 /**
  * Save Global Config directly to Firestore (settings/tv_config_v2)
- * and split documents for backward compatibility.
  */
 export async function saveGlobalConfigFirestore(config: TVConfig): Promise<boolean> {
   const sanitized = sanitizeForFirestore(config);
-  let success = false;
 
   try {
-    // 1. Direct client-side write to Firestore (Primary for Vercel/Static hosting)
-    await setDoc(doc(db, 'settings', 'tv_config_v2'), sanitized, { merge: true });
-
-    const generalConfig = { ...sanitized, buildings: [], slides: [] };
-    const buildingsConfig = { buildings: sanitized.buildings || [] };
-    const slidesConfig = { slides: sanitized.slides || [] };
-
-    await Promise.all([
-      setDoc(doc(db, 'settings', 'tv_config_general'), generalConfig, { merge: true }),
-      setDoc(doc(db, 'settings', 'tv_config_buildings'), buildingsConfig, { merge: true }),
-      setDoc(doc(db, 'settings', 'tv_config_slides'), slidesConfig, { merge: true }),
-    ]);
-
-    success = true;
+    // 1. Direct write to Firestore settings/tv_config_v2 with 3.5s timeout safety
+    await withTimeout(setDoc(doc(db, 'settings', 'tv_config_v2'), sanitized, { merge: true }), 3500);
   } catch (err) {
-    console.warn('Direct Firestore save failed, attempting API fallback:', err);
+    console.warn('Direct Firestore save notice:', err);
   }
 
-  // 2. Secondary Express API call fallback (if Node server is present)
-  try {
-    await fetch('/api/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ config }),
-    });
-  } catch {
-    // Ignore API route errors on Vercel/Static hosting
-  }
+  // 2. Secondary Express API call in background (non-blocking)
+  safeApiFetch('/api/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ config }),
+  });
 
-  return success;
+  return true;
 }
 
 /**
@@ -358,62 +379,60 @@ export async function publishConfigFirestore(
   config: any,
   historyItem: PublishHistoryItem
 ): Promise<void> {
-  // 1. Save config to Firestore directly
+  // 1. Save config to Firestore directly with timeout
   await saveGlobalConfigFirestore(config);
 
-  // 2. Add history entry
+  // 2. Add history entry with 3s timeout
   try {
     const histId = 'hist-' + Date.now();
-    await setDoc(doc(db, 'history', histId), sanitizeForFirestore({ id: histId, ...historyItem }), {
-      merge: true,
-    });
+    await withTimeout(
+      setDoc(doc(db, 'history', histId), sanitizeForFirestore({ id: histId, ...historyItem }), {
+        merge: true,
+      }),
+      3000
+    );
   } catch (err) {
-    console.warn('Direct Firestore publish history log error:', err);
+    console.warn('Direct Firestore publish history log notice:', err);
   }
 
-  // 3. API fallback
-  try {
-    await fetch('/api/screens/publish', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        targetType: 'all',
-        config,
-        title: historyItem.targetSummary || 'Đẩy cấu hình',
-        publisherEmail: historyItem.publisherEmail,
-        publisherName: historyItem.publisherName,
-      }),
-    });
-  } catch {
-    // ignore
-  }
+  // 3. API fallback in background (non-blocking)
+  safeApiFetch('/api/screens/publish', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      targetType: 'all',
+      config,
+      title: historyItem.targetSummary || 'Đẩy cấu hình',
+      publisherEmail: historyItem.publisherEmail,
+      publisherName: historyItem.publisherName,
+    }),
+  });
 }
 
 export async function logHistoryFirestore(item: PublishHistoryItem): Promise<void> {
   try {
     const histId = 'hist-' + Date.now();
-    await setDoc(doc(db, 'history', histId), sanitizeForFirestore({ id: histId, ...item }), {
-      merge: true,
-    });
+    await withTimeout(
+      setDoc(doc(db, 'history', histId), sanitizeForFirestore({ id: histId, ...item }), {
+        merge: true,
+      }),
+      3000
+    );
   } catch (err) {
-    console.warn('Direct Firestore log history error:', err);
+    console.warn('Direct Firestore log history notice:', err);
   }
 
-  try {
-    await fetch('/api/history/log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: (item.configSnapshot as any)?.title || item.targetSummary || 'Thao tác hệ thống',
-        targetSummary: item.targetSummary,
-        affectedScreensCount: item.affectedScreensCount,
-        publisherEmail: item.publisherEmail,
-        publisherName: item.publisherName,
-      }),
-    });
-  } catch {
-    // ignore
-  }
+  safeApiFetch('/api/history/log', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: (item.configSnapshot as any)?.title || item.targetSummary || 'Thao tác hệ thống',
+      targetSummary: item.targetSummary,
+      affectedScreensCount: item.affectedScreensCount,
+      publisherEmail: item.publisherEmail,
+      publisherName: item.publisherName,
+    }),
+  });
 }
 
 export async function getFirestoreUser(

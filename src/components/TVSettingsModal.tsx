@@ -623,7 +623,7 @@ export const TVSettingsModal: React.FC<TVSettingsModalProps> = ({
           lastUpdated: new Date().toISOString(),
         };
 
-        // Log configuration changes to backend history list
+        // Log configuration changes in background (non-blocking)
         const logConfigChanges = async () => {
           try {
             const changes: string[] = [];
@@ -649,16 +649,16 @@ export const TVSettingsModal: React.FC<TVSettingsModalProps> = ({
                 publisherName: currentUser?.name || 'Administrator',
               };
 
-              // Direct Firestore logging
-              await logHistoryFirestore(historyItem);
+              logHistoryFirestore(historyItem).catch(() => {});
             }
           } catch (err) {
             console.error('Error recording config change log:', err);
           }
         };
-        
-        await logConfigChanges();
 
+        logConfigChanges().catch(() => {});
+
+        // Save config
         await onSaveConfig(updated);
         toast.success('Đã lưu cấu hình thành công!');
         onClose();

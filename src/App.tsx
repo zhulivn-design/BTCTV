@@ -17,7 +17,7 @@ import {
   saveGlobalConfigFirestore,
   subscribeGlobalConfigFirestore,
   subscribeSingleScreenFirestore,
-  publishConfigFirestore,
+  logHistoryFirestore,
   upsertScreenFirestore,
 } from './lib/firebaseStore';
 import './lib/firebaseDiagnostic';
@@ -277,21 +277,18 @@ export default function App() {
       // 1. Direct write to Firestore settings/tv_config_v2
       await saveGlobalConfigFirestore(newConfig);
 
-      // 2. Publish config update
-      await publishConfigFirestore(
-        [],
-        newConfig,
-        {
-          id: 'pub-' + Date.now(),
-          targetType: 'all',
-          publishedAt: new Date().toISOString(),
-          targetSummary: 'Cập nhật cấu hình hệ thống',
-          affectedScreensCount: 1,
-          publisherEmail: 'system@admin.com',
-          publisherName: 'Hệ thống',
-          configSnapshot: newConfig,
-        }
-      );
+      // 2. Non-blocking history logging
+      logHistoryFirestore({
+        id: 'pub-' + Date.now(),
+        timestamp: new Date().toLocaleString('vi-VN'),
+        title: 'Cập nhật cấu hình hệ thống',
+        targetType: 'all',
+        targetSummary: 'Cập nhật cấu hình hệ thống',
+        affectedScreensCount: 1,
+        publisherEmail: 'system@admin.com',
+        publisherName: 'Hệ thống',
+        configSnapshot: newConfig,
+      }).catch(() => {});
     } catch (e) {
       console.error('Failed to save TV config:', e);
     }
