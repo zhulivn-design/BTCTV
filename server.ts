@@ -120,6 +120,10 @@ function recordFirestoreUsage(
 
 function handleFirestoreError(err: any, actionName: string, operation: 'read' | 'write' | 'delete' = 'read', collectionName: string = 'system') {
   console.error(`[Firestore Error - ${actionName} - ${collectionName}]:`, err);
+  if (err?.code === 5) {
+    console.warn(`[Firestore Info] Collection ${collectionName} not found, treating as empty.`);
+    return;
+  }
   if (
     err?.code === 'resource-exhausted' ||
     err?.code === 8 ||
@@ -482,9 +486,9 @@ async function syncGlobalConfigToFirestore(config: any) {
     const slidesConfig = { slides: config.slides || [] };
 
     await Promise.all([
-      setDoc(doc(db, 'settings', 'tv_config_general'), sanitizeForFirestore(generalConfig)),
-      setDoc(doc(db, 'settings', 'tv_config_buildings'), sanitizeForFirestore(buildingsConfig)),
-      setDoc(doc(db, 'settings', 'tv_config_slides'), sanitizeForFirestore(slidesConfig)),
+      db.collection('settings').doc('tv_config_general').set(sanitizeForFirestore(generalConfig), { merge: true }),
+      db.collection('settings').doc('tv_config_buildings').set(sanitizeForFirestore(buildingsConfig), { merge: true }),
+      db.collection('settings').doc('tv_config_slides').set(sanitizeForFirestore(slidesConfig), { merge: true }),
     ]);
     recordFirestoreUsage('write', 'settings', 'tv_config_*', 'success', undefined, 3);
     console.log(`[DEBUG - syncGlobalConfigToFirestore]: Successfully synced global config.`);
@@ -497,7 +501,7 @@ async function loadGroupsFromFirestore() {
   if (isFirestoreQuotaExhausted) return;
   console.log("Starting loadGroupsFromFirestore...");
   try {
-    const snap = await getDocs(collection(db, 'groups'));
+    const snap = await db.collection('groups').get();
     console.log(`loadGroupsFromFirestore: Found ${snap.size} docs.`);
     recordFirestoreUsage('read', 'groups', undefined, 'success', undefined, Math.max(1, snap.size));
     const fsGroups: ScreenGroupData[] = [];
@@ -527,7 +531,7 @@ async function syncGroupToFirestore(group: ScreenGroupData) {
   if (isFirestoreQuotaExhausted) return;
   console.log(`[DEBUG - syncGroupToFirestore]: Syncing group ${group.id}...`);
   try {
-    await setDoc(doc(db, 'groups', group.id), sanitizeForFirestore(group), { merge: true });
+    await db.collection('groups').doc(group.id).set(sanitizeForFirestore(group), { merge: true });
     recordFirestoreUsage('write', 'groups', group.id);
     saveGroups();
     console.log(`[DEBUG - syncGroupToFirestore]: Successfully synced group ${group.id}.`);
@@ -539,7 +543,7 @@ async function syncGroupToFirestore(group: ScreenGroupData) {
 async function deleteGroupFromFirestore(groupId: string) {
   if (isFirestoreQuotaExhausted) return;
   try {
-    await deleteDoc(doc(db, 'groups', groupId));
+    await db.collection('groups').doc(groupId).delete();
     recordFirestoreUsage('delete', 'groups', groupId);
     saveGroups();
   } catch (err: any) {
@@ -605,19 +609,19 @@ async function loadGlobalConfig() {
 
   try {
     // Primary source of truth: Load from Firestore split documents
-    const generalDoc = await getDoc(doc(db, 'settings', 'tv_config_general'));
-    const bldDoc = await getDoc(doc(db, 'settings', 'tv_config_buildings'));
-    const slidesDoc = await getDoc(doc(db, 'settings', 'tv_config_slides'));
+    const generalDoc = await db.collection('settings').doc('tv_config_general').get();
+    const bldDoc = await db.collection('settings').doc('tv_config_buildings').get();
+    const slidesDoc = await db.collection('settings').doc('tv_config_slides').get();
     recordFirestoreUsage('read', 'settings', 'tv_config_*', 'success', undefined, 3);
     
     let fsConfig: any = {};
-    if (generalDoc.exists()) {
+    if (generalDoc.exists) {
       fsConfig = { ...fsConfig, ...generalDoc.data() };
     }
-    if (bldDoc.exists()) {
+    if (bldDoc.exists) {
       fsConfig = { ...fsConfig, ...bldDoc.data() };
     }
-    if (slidesDoc.exists()) {
+    if (slidesDoc.exists) {
       fsConfig = { ...fsConfig, ...slidesDoc.data() };
     }
 
@@ -720,9 +724,9 @@ app.post("/api/config", async (req, res) => {
         const slidesConfig = { slides: config.slides || [] };
 
         await Promise.all([
-          setDoc(doc(db, 'settings', 'tv_config_general'), sanitizeForFirestore(generalConfig)),
-          setDoc(doc(db, 'settings', 'tv_config_buildings'), sanitizeForFirestore(buildingsConfig)),
-          setDoc(doc(db, 'settings', 'tv_config_slides'), sanitizeForFirestore(slidesConfig)),
+          db.collection('settings').doc('tv_config_general').set(sanitizeForFirestore(generalConfig), { merge: true }),
+          db.collection('settings').doc('tv_config_buildings').set(sanitizeForFirestore(buildingsConfig), { merge: true }),
+          db.collection('settings').doc('tv_config_slides').set(sanitizeForFirestore(slidesConfig), { merge: true }),
         ]);
         recordFirestoreUsage('write', 'settings', 'tv_config_*', 'success', undefined, 3);
       } catch (err: any) {
@@ -741,7 +745,7 @@ app.get("/api/debug/system-status", async (req, res) => {
   let adminPwdType = 'unknown';
 
   try {
-    const uSnap = await getDocs(collection(db, 'users'));
+    const uSnap = await db.collection('users').get();
     fsUserCount = uSnap.size;
     uSnap.forEach(d => {
       if (d.id === 'admin') {
@@ -751,7 +755,7 @@ app.get("/api/debug/system-status", async (req, res) => {
       }
     });
 
-    const gSnap = await getDocs(collection(db, 'groups'));
+    const gSnap = await db.collection('groups').get();
     fsGroupCount = gSnap.size;
   } catch (e: any) {
     adminPwdType = `Error reading Firestore: ${e.message}`;
