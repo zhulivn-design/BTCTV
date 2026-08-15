@@ -183,37 +183,58 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
   }, [hasInitializedSelection, setFormData, toast]);
 
   useEffect(() => {
-    fetchServerState();
+    let unsubGroups: any;
+    let unsubScreens: any;
 
-    const unsubGroups = subscribeGroupsFirestore((fsGroups) => {
-      if (fsGroups && fsGroups.length > 0) {
-        setGroups(fsGroups);
-        setFormData((prev) => ({ ...prev, screenGroups: fsGroups }));
-        if (!hasInitializedSelection) {
-          setSelectedGroupIds([fsGroups[0].id]);
-          setHasInitializedSelection(true);
+    const subscribe = () => {
+      unsubGroups = subscribeGroupsFirestore((fsGroups) => {
+        if (fsGroups && fsGroups.length > 0) {
+          setGroups(fsGroups);
+          setFormData((prev) => ({ ...prev, screenGroups: fsGroups }));
+          if (!hasInitializedSelection) {
+            setSelectedGroupIds([fsGroups[0].id]);
+            setHasInitializedSelection(true);
+          }
         }
-      }
-    });
+      });
 
-    const unsubScreens = subscribeScreensFirestore((fsScreens) => {
-      if (fsScreens) {
-        const now = Date.now();
-        setScreens(
-          fsScreens.map((scr) => ({
-            ...scr,
-            status: now - (scr.lastSeen ? new Date(scr.lastSeen).getTime() : 0) < 60000 ? 'online' : 'offline',
-          }))
-        );
-      }
-    });
+      unsubScreens = subscribeScreensFirestore((fsScreens) => {
+        if (fsScreens) {
+          const now = Date.now();
+          setScreens(
+            fsScreens.map((scr) => ({
+              ...scr,
+              status: now - (scr.lastSeen ? new Date(scr.lastSeen).getTime() : 0) < 60000 ? 'online' : 'offline',
+            }))
+          );
+        }
+      });
+    };
 
-    // const interval = setInterval(fetchServerState, 30000);
+    const unsubscribe = () => {
+      if (unsubGroups) unsubGroups();
+      if (unsubScreens) unsubScreens();
+    };
+
+    // Initial subscription
+    fetchServerState();
+    subscribe();
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        unsubscribe();
+      } else {
+        // Refresh immediately on visibility to ensure stale data isn't shown
+        fetchServerState();
+        subscribe();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      unsubGroups();
-      unsubScreens();
-      // clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      unsubscribe();
     };
   }, [fetchServerState, hasInitializedSelection, setFormData]);
 

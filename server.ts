@@ -17,12 +17,21 @@ console.log("Initializing Firebase...");
 let firebaseConfigData;
 try {
   const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+  console.log("Checking for config file at:", configPath, "Exists:", fs.existsSync(configPath));
   if (fs.existsSync(configPath)) {
     firebaseConfigData = JSON.parse(fs.readFileSync(configPath, "utf8"));
     console.log("Firebase config loaded successfully.");
   } else {
-    console.error("Firebase config file not found at:", configPath);
-    firebaseConfigData = {}; // Or handle differently
+    console.error("Firebase config file NOT FOUND at:", configPath);
+    // Try current directory as fallback for Vercel
+    const fallbackPath = path.join(process.cwd(), "api/firebase-applet-config.json");
+    console.log("Checking fallback path:", fallbackPath, "Exists:", fs.existsSync(fallbackPath));
+    if (fs.existsSync(fallbackPath)) {
+        firebaseConfigData = JSON.parse(fs.readFileSync(fallbackPath, "utf8"));
+        console.log("Firebase config loaded from fallback successfully.");
+    } else {
+        firebaseConfigData = {};
+    }
   }
 } catch (e) {
   console.error("Error reading Firebase config file:", e);
