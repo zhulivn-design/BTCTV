@@ -9,11 +9,18 @@ import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
 // Initialize Firebase Admin
-const serviceAccountPath = path.join(process.cwd(), 'serviceAccountKey.json');
-const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+let credential;
+if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+  credential = cert(JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON));
+  console.log("Using credentials from environment variable.");
+} else {
+  const serviceAccountPath = path.join(process.cwd(), 'serviceAccountKey.json');
+  credential = cert(JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8')));
+  console.log("Using credentials from serviceAccountKey.json file.");
+}
 
 initializeApp({
-  credential: cert(serviceAccount),
+  credential,
 });
 
 const db = getFirestore();
