@@ -1,56 +1,23 @@
 import express from "express";
+import "dotenv/config";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import { LRUCache } from 'lru-cache';
 import { createServer as createViteServer } from "vite";
-import { initializeApp, getApps } from "firebase/app";
-import { getFirestore, doc, setDoc, updateDoc, deleteDoc, collection, getDocs, getDoc, setLogLevel } from "firebase/firestore";
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
-// Mute Firestore SDK internal logs (e.g. idle stream disconnect logs)
-try {
-  setLogLevel('silent');
-} catch {
-  // ignore
-}
-console.log("Initializing Firebase...");
-let firebaseConfigData;
-try {
-  const configPath = path.join(process.cwd(), "firebase-applet-config.json");
-  console.log("Checking for config file at:", configPath, "Exists:", fs.existsSync(configPath));
-  if (fs.existsSync(configPath)) {
-    firebaseConfigData = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    console.log("Firebase config loaded successfully.");
-  } else {
-    console.error("Firebase config file NOT FOUND at:", configPath);
-    // Try current directory as fallback for Vercel
-    const fallbackPath = path.join(process.cwd(), "api/firebase-applet-config.json");
-    console.log("Checking fallback path:", fallbackPath, "Exists:", fs.existsSync(fallbackPath));
-    if (fs.existsSync(fallbackPath)) {
-        firebaseConfigData = JSON.parse(fs.readFileSync(fallbackPath, "utf8"));
-        console.log("Firebase config loaded from fallback successfully.");
-    } else {
-        firebaseConfigData = {};
-    }
-  }
-} catch (e) {
-  console.error("Error reading Firebase config file:", e);
-  firebaseConfigData = {};
-}
+// Initialize Firebase Admin
+const serviceAccountPath = path.join(process.cwd(), 'serviceAccountKey.json');
+const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
 
-const firebaseConfig = {
-  apiKey: firebaseConfigData.apiKey || "",
-  authDomain: firebaseConfigData.authDomain || "",
-  projectId: firebaseConfigData.projectId || "",
-  storageBucket: firebaseConfigData.storageBucket || "",
-  messagingSenderId: firebaseConfigData.messagingSenderId || "",
-  appId: firebaseConfigData.appId || "",
-  databaseId: firebaseConfigData.firestoreDatabaseId || '(default)'
-};
+initializeApp({
+  credential: cert(serviceAccount),
+});
 
-const fbApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const db = getFirestore(fbApp, firebaseConfigData.firestoreDatabaseId || '(default)');
-console.log("Firebase initialized successfully.");
+const db = getFirestore();
+console.log("Firebase Admin initialized successfully.");
 
 let isFirestoreQuotaExhausted = false;
 
@@ -183,7 +150,7 @@ function sanitizeForFirestore(obj: any): any {
 async function loadScreensFromFirestore() {
   if (isFirestoreQuotaExhausted) return;
   try {
-    const snap = await getDocs(collection(db, 'screens'));
+    const snap = await db.collection('screens').get();
     recordFirestoreUsage('read', 'screens', undefined, 'success', undefined, Math.max(1, snap.size));
     if (!snap.empty) {
       const fsScreens: ScreenDeviceData[] = [];
@@ -223,7 +190,7 @@ async function loadScreensFromFirestore() {
 async function syncScreenToFirestore(screen: ScreenDeviceData) {
   if (isFirestoreQuotaExhausted) return;
   try {
-    await setDoc(doc(db, 'screens', screen.id), sanitizeForFirestore(screen), { merge: true });
+    await db.collection('screens').doc(screen.id).set(sanitizeForFirestore(screen), { merge: true });
     recordFirestoreUsage('write', 'screens', screen.id);
   } catch (err: any) {
     handleFirestoreError(err, 'syncScreenToFirestore', 'write', 'screens');
@@ -233,7 +200,7 @@ async function syncScreenToFirestore(screen: ScreenDeviceData) {
 async function removeScreenFromFirestore(screenId: string) {
   if (isFirestoreQuotaExhausted) return;
   try {
-    await deleteDoc(doc(db, 'screens', screenId));
+    await db.collection('screens').doc(screenId).delete();
     recordFirestoreUsage('delete', 'screens', screenId);
   } catch (err: any) {
     handleFirestoreError(err, 'removeScreenFromFirestore', 'delete', 'screens');
@@ -283,7 +250,7 @@ async function syncUserToFirestore(user: UserAccount) {
   try {
     const docId = user.email.toLowerCase().trim();
     const pwdHash = normalizePasswordHash(user.password);
-    await setDoc(doc(db, 'users', docId), {
+    await db.collection('users').doc(docId).set({
       email: docId,
       password: pwdHash,
       passwordHash: pwdHash,
@@ -302,7 +269,7 @@ async function loadUsersFromFirestore() {
   if (isFirestoreQuotaExhausted) return;
   console.log("Starting loadUsersFromFirestore...");
   try {
-    const snap = await getDocs(collection(db, 'users'));
+    const snap = await db.collection('users').get();
     console.log(`loadUsersFromFirestore: Found ${snap.size} docs.`);
     recordFirestoreUsage('read', 'users', undefined, 'success', undefined, Math.max(1, snap.size));
     if (!snap.empty) {
@@ -404,7 +371,7 @@ function saveMedia() {
 async function syncMediaToFirestore(mediaObj: any) {
   if (isFirestoreQuotaExhausted) return;
   try {
-    await setDoc(doc(db, 'media', mediaObj.id), sanitizeForFirestore(mediaObj), { merge: true });
+    await db.collection('media').doc(mediaObj.id).set(sanitizeForFirestore(mediaObj), { merge: true });
     recordFirestoreUsage('write', 'media', mediaObj.id);
   } catch (err: any) {
     handleFirestoreError(err, 'syncMediaToFirestore', 'write', 'media');
@@ -414,7 +381,7 @@ async function syncMediaToFirestore(mediaObj: any) {
 async function deleteMediaFromFirestore(mediaId: string) {
   if (isFirestoreQuotaExhausted) return;
   try {
-    await deleteDoc(doc(db, 'media', mediaId));
+    await db.collection('media').doc(mediaId).delete();
     recordFirestoreUsage('delete', 'media', mediaId);
   } catch (err: any) {
     handleFirestoreError(err, 'deleteMediaFromFirestore', 'delete', 'media');
@@ -424,7 +391,7 @@ async function deleteMediaFromFirestore(mediaId: string) {
 async function loadMediaFromFirestore() {
   if (isFirestoreQuotaExhausted) return;
   try {
-    const snap = await getDocs(collection(db, 'media'));
+    const snap = await db.collection('media').get();
     recordFirestoreUsage('read', 'media', undefined, 'success', undefined, Math.max(1, snap.size));
     if (!snap.empty) {
       snap.forEach((d) => {
@@ -805,10 +772,10 @@ app.get("/api/debug/system-status", async (req, res) => {
       usersCount: fsUserCount,
       groupsCount: fsGroupCount,
       adminPasswordState: adminPwdType,
-      projectId: firebaseConfig.projectId,
-      databaseId: firebaseConfig.databaseId,
-      authDomain: firebaseConfig.authDomain,
-      storageBucket: firebaseConfig.storageBucket,
+      projectId: process.env.FIREBASE_PROJECT_ID || 'N/A',
+      databaseId: process.env.FIRESTORE_DATABASE_ID || '(default)',
+      authDomain: process.env.FIREBASE_AUTH_DOMAIN || 'N/A',
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || 'N/A',
     },
     sampleGroups: screenGroupsStore.map(g => ({ id: g.id, name: g.name })),
     sampleSlides: (globalTvConfig?.slides || []).map(s => ({ id: s.id, title: s.title }))
@@ -821,14 +788,14 @@ app.get("/api/firebase/info", (req, res) => {
     ok: true,
     timestamp: new Date().toISOString(),
     config: {
-      projectId: firebaseConfig.projectId,
-      databaseId: firebaseConfig.databaseId,
-      authDomain: firebaseConfig.authDomain,
-      storageBucket: firebaseConfig.storageBucket,
-      messagingSenderId: firebaseConfig.messagingSenderId,
-      appId: firebaseConfig.appId,
-      apiKeyMasked: firebaseConfig.apiKey ? `${firebaseConfig.apiKey.substring(0, 8)}...${firebaseConfig.apiKey.substring(firebaseConfig.apiKey.length - 6)}` : 'N/A',
-      apiKeyFull: firebaseConfig.apiKey,
+      projectId: process.env.FIREBASE_PROJECT_ID || 'N/A',
+      databaseId: process.env.FIRESTORE_DATABASE_ID || '(default)',
+      authDomain: process.env.FIREBASE_AUTH_DOMAIN || 'N/A',
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || 'N/A',
+      messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || 'N/A',
+      appId: process.env.FIREBASE_APP_ID || 'N/A',
+      apiKeyMasked: process.env.FIREBASE_API_KEY ? `${process.env.FIREBASE_API_KEY.substring(0, 8)}...${process.env.FIREBASE_API_KEY.substring(process.env.FIREBASE_API_KEY.length - 6)}` : 'N/A',
+      apiKeyFull: process.env.FIREBASE_API_KEY || 'N/A',
     },
     quotaExhausted: isFirestoreQuotaExhausted
   });
@@ -1647,8 +1614,16 @@ async function start() {
   }
 
   if (!process.env.VERCEL) {
-    app.listen(PORT, "0.0.0.0", () => {
+    const server = app.listen(PORT, "0.0.0.0", () => {
       console.log(`Android TV Web App listening on http://0.0.0.0:${PORT}`);
+    });
+
+    server.on('error', (e: any) => {
+      if (e.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use.`);
+      } else {
+        console.error('Server error:', e);
+      }
     });
   }
 }

@@ -4,5 +4,17 @@
     "reads": 427,
     "writes": 10,
     "deletes": 4
+  },
+  "2026-08-14": {
+    "date": "2026-08-14",
+    "reads": 78,
+    "writes": 3,
+    "deletes": 0
+  },
+  "2026-08-15": {
+    "date": "2026-08-15",
+    "reads": 487,
+    "writes": 18,
+    "deletes": 10
   }
 }
