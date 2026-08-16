@@ -372,5 +372,18 @@
     "resolution": "1920x1080 (16:9)",
     "approved": true,
     "requestedAt": 1786559676762
+  },
+  {
+    "id": "SCR-1T761",
+    "name": "Màn hình ",
+    "groupId": "grp-8152",
+    "buildingId": "building-a",
+    "zone": "lobby",
+    "status": "online",
+    "lastSeen": 1786872803879,
+    "ipAddress": "127.0.0.1",
+    "resolution": "1920x1080 (16:9)",
+    "approved": false,
+    "requestedAt": 1786872803879
   }
 ]
