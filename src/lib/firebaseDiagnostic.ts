@@ -165,8 +165,5 @@ if (typeof window !== 'undefined') {
   (window as any).runFirebaseDiagnostics = runFirebaseDiagnostics;
   (window as any).firebaseConfigData = firebaseConfigData;
 
-  // Auto run once on startup
-  setTimeout(() => {
-    runFirebaseDiagnostics().catch(() => {});
-  }, 1000);
+
 }
