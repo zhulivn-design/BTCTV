@@ -18,7 +18,7 @@ import {
   subscribeGlobalConfigFirestore,
   subscribeSingleScreenFirestore,
   logHistoryFirestore,
-  upsertScreenFirestore,
+  
 } from './lib/firebaseStore';
 import './lib/firebaseDiagnostic';
 
@@ -224,19 +224,6 @@ export default function App() {
     return () => unsubscribe();
   }, [screenId]);
 
-  // One-time initial device registration in Firestore (runs once when screen connects or changes group)
-  useEffect(() => {
-    upsertScreenFirestore({
-      id: screenId,
-      name: `Màn hình ${screenId}`,
-      groupId: screenGroupId,
-      buildingId: config.selectedBuildingId || 'building-a',
-      zone: config.selectedZone || 'lobby',
-      lastSeen: Date.now(),
-      status: 'online',
-      approved: isDeviceApproved,
-    }).catch(() => {});
-  }, [screenId, screenGroupId, isDeviceApproved]); // Removed config dependencies
 
 
   // Save config changes to localStorage & Firestore

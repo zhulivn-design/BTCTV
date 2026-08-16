@@ -4,27 +4,42 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import { LRUCache } from 'lru-cache';
-import { createServer as createViteServer } from "vite";
+// Vite imported dynamically to avoid bundling in Vercel
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
 // Initialize Firebase Admin
 let credential;
-if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
-  credential = cert(JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON));
-  console.log("Using credentials from environment variable.");
-} else {
-  const serviceAccountPath = path.join(process.cwd(), 'serviceAccountKey.json');
-  credential = cert(JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8')));
-  console.log("Using credentials from serviceAccountKey.json file.");
+try {
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+    credential = cert(JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON));
+    console.log("Using credentials from environment variable.");
+  } else {
+    const serviceAccountPath = path.join(process.cwd(), 'serviceAccountKey.json');
+    if (fs.existsSync(serviceAccountPath)) {
+      credential = cert(JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8')));
+      console.log("Using credentials from serviceAccountKey.json file.");
+    } else {
+      console.warn("No Firebase credentials found. Firebase Admin will initialize without explicit credentials.");
+    }
+  }
+} catch (err) {
+  console.error("Error parsing Firebase credentials:", err);
 }
 
-initializeApp({
-  credential,
-});
+try {
+  initializeApp(credential ? { credential } : undefined);
+} catch (err) {
+  console.error("Error initializing Firebase Admin:", err);
+}
 
-const db = getFirestore();
-console.log("Firebase Admin initialized successfully.");
+let db: FirebaseFirestore.Firestore;
+try {
+  db = getFirestore();
+  console.log("Firebase Admin initialized successfully.");
+} catch (err) {
+  console.error("Failed to get Firestore instance. Check Firebase initialization:", err);
+}
 
 let isFirestoreQuotaExhausted = false;
 
@@ -163,36 +178,26 @@ async function loadScreensFromFirestore() {
   try {
     const snap = await db.collection('screens').get();
     recordFirestoreUsage('read', 'screens', undefined, 'success', undefined, Math.max(1, snap.size));
-    if (!snap.empty) {
-      const fsScreens: ScreenDeviceData[] = [];
-      snap.forEach((d) => {
-        fsScreens.push({ id: d.id, ...d.data() } as ScreenDeviceData);
-      });
+    const fsScreens: ScreenDeviceData[] = [];
+    snap.forEach((d) => {
+      fsScreens.push({ id: d.id, ...d.data() } as ScreenDeviceData);
+    });
 
-      for (const scr of fsScreens) {
-        if (!scr.id) continue;
-        const cleanFsId = scr.id.trim().toUpperCase();
-        const idx = screenDevicesStore.findIndex((s) => (s.id || '').trim().toLowerCase() === cleanFsId.toLowerCase());
-        if (idx >= 0) {
-          // If approved in EITHER memory OR firestore, preserve approval = true
-          const isApproved = (screenDevicesStore[idx].approved === true) || (scr.approved === true);
-          screenDevicesStore[idx] = {
-            ...screenDevicesStore[idx],
-            ...scr,
-            id: cleanFsId,
-            approved: isApproved,
-            lastSeen: Math.max(scr.lastSeen || 0, screenDevicesStore[idx].lastSeen || 0),
-          };
-        } else {
-          screenDevicesStore.push({
-            ...scr,
-            id: cleanFsId,
-            approved: scr.approved === true,
-          });
-        }
-      }
-      saveScreens();
-    }
+    // Firestore is the single source of truth: Replace screenDevicesStore with fsScreens
+    screenDevicesStore = fsScreens.map((scr) => {
+      const cleanFsId = (scr.id || '').trim().toUpperCase();
+      const existing = screenDevicesStore.find(
+        (s) => (s.id || '').trim().toLowerCase() === cleanFsId.toLowerCase()
+      );
+      return {
+        ...scr,
+        id: cleanFsId,
+        approved: scr.approved === true,
+        lastSeen: Math.max(scr.lastSeen || 0, existing?.lastSeen || 0),
+        status: existing?.status || scr.status || 'offline',
+      };
+    });
+    saveScreens();
   } catch (err: any) {
     handleFirestoreError(err, 'loadScreensFromFirestore', 'read', 'screens');
   }
@@ -517,12 +522,12 @@ async function loadGroupsFromFirestore() {
     });
 
     const combinedGroups = [...fsGroups];
-    for (const localG of screenGroupsStore) {
-      if (localG && localG.id && !combinedGroups.some(g => g.id === localG.id)) {
-        combinedGroups.push(localG);
-        syncGroupToFirestore(localG).catch((e) => console.error("Sync error:", e));
-      }
-    }
+    // Removed syncing local to firestore
+    // Clean up local store
+    screenGroupsStore = screenGroupsStore.filter(localG =>
+        combinedGroups.some(g => g.id === localG.id)
+    );
+    saveGroups();
 
     if (combinedGroups.length > 0) {
       screenGroupsStore = combinedGroups;
@@ -1002,75 +1007,42 @@ app.get("/api/screens/state", async (req, res) => {
 app.post("/api/screens/heartbeat", async (req, res) => {
   const { screenId, name, groupId, ipAddress } = req.body;
   const now = Date.now();
-
   const cleanId = normalizeScreenId(screenId);
+  
+  if (!cleanId) return res.json({ ok: false });
+
   // Update heartbeat in cache
   onlineDevicesCache.set(cleanId, now);
 
   let screen = findScreenById(cleanId);
-
-  // If screen is missing or not approved in RAM, reload from Firestore to verify if Admin approved it
-  if (!screen || !screen.approved) {
-    await loadScreensFromFirestore();
-    screen = findScreenById(cleanId);
+  
+  // If the screen is not registered at all, we DO NOT auto-create it anymore.
+  if (!screen) {
+    return res.json({
+      ok: false,
+      error: "Màn hình chưa được đăng ký",
+      approved: false
+    });
   }
 
-  const defaultApprovedIds = ['SCR-LOBBY-A1', 'SCR-LOBBY-A2', 'SCR-CABIN-A1', 'SCR-CABIN-A2', 'SCR-LOBBY-B1', 'SCR-CABIN-B1'];
-  const isDefaultApproved = defaultApprovedIds.some(d => d.toLowerCase() === cleanId.toLowerCase());
-
-  if (!screen) {
-    const defaultGroup = findBestGroupForScreen('building-a', 'lobby');
-    screen = {
-      id: cleanId || `SCR-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
-      name: name || `Màn hình ${cleanId}`,
-      groupId: groupId && groupId !== 'grp-1' && screenGroupsStore.some(g => g.id === groupId) ? groupId : defaultGroup,
-      buildingId: 'building-a',
-      zone: 'lobby',
-      status: 'online',
-      lastSeen: now, // Initial lastSeen for new device
-      ipAddress: ipAddress || req.ip || '127.0.0.1',
-      resolution: '1920x1080 (16:9)',
-      approved: isDefaultApproved, // Default screens start as approved
-      requestedAt: now,
-    };
-    screenDevicesStore.push(screen);
-    saveScreens(); // New screen, save to JSON
-    syncScreenToFirestore(screen).catch(() => {});
-  } else {
-    if (isDefaultApproved && !screen.approved) {
-      screen.approved = true;
-    }
-    // Only update persistent data if necessary (don't save on every heartbeat)
-    let needsSave = false;
-    if (ipAddress && screen.ipAddress !== ipAddress) {
-      screen.ipAddress = ipAddress;
-      needsSave = true;
-    }
-
-    if (req.body.buildingId && screen.buildingId !== req.body.buildingId) {
-      screen.buildingId = req.body.buildingId;
-      needsSave = true;
-    }
-    if (req.body.zone && screen.zone !== req.body.zone) {
-      screen.zone = req.body.zone;
-      needsSave = true;
-    }
-    
-    // Auto fix screen.groupId if missing, invalid, or dummy 'grp-1'
-    if (!screen.groupId || screen.groupId === 'grp-1' || !screenGroupsStore.some(g => g.id === screen.groupId)) {
-      if (groupId && groupId !== 'grp-1' && screenGroupsStore.some(g => g.id === groupId)) {
-        screen.groupId = groupId;
-        needsSave = true;
-      } else {
-        screen.groupId = findBestGroupForScreen(screen.buildingId, screen.zone);
-        needsSave = true;
-      }
-    }
-    
-    if (needsSave) {
-        saveScreens();
-        syncScreenToFirestore(screen).catch(() => {});
-    }
+  // Only update persistent data if necessary (don't save on every heartbeat)
+  let needsSave = false;
+  if (ipAddress && screen.ipAddress !== ipAddress) {
+    screen.ipAddress = ipAddress;
+    needsSave = true;
+  }
+  if (req.body.buildingId && screen.buildingId !== req.body.buildingId) {
+    screen.buildingId = req.body.buildingId;
+    needsSave = true;
+  }
+  if (req.body.zone && screen.zone !== req.body.zone) {
+    screen.zone = req.body.zone;
+    needsSave = true;
+  }
+  
+  if (needsSave) {
+      saveScreens();
+      syncScreenToFirestore(screen).catch(() => {});
   }
 
   return res.json({
@@ -1081,10 +1053,9 @@ app.post("/api/screens/heartbeat", async (req, res) => {
     groupId: screen.groupId,
     assignedConfig: screen.assignedConfig || null,
     serverTime: now,
-    approved: screen.approved === true, // Return exact boolean approval status
+    approved: screen.approved === true,
   });
 });
-
 // API: Add/Update Screen Group
 app.post("/api/screens/groups", async (req, res) => {
   const { id, name, code, description, buildingId } = req.body;
@@ -1607,6 +1578,7 @@ async function start() {
 
   if (process.env.NODE_ENV !== "production") {
     const isHmrDisabled = process.env.DISABLE_HMR === "true";
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: {
         middlewareMode: true,

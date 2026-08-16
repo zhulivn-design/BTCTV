@@ -74,9 +74,8 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
   // 3 Primary Tabs for extreme clarity
   const [activeTab, setActiveTab] = useState<'broadcast' | 'devices' | 'history'>('broadcast');
 
-  // Sub-tab inside Device Manager
-  const [deviceSubTab, setDeviceSubTab] = useState<'approved' | 'pending' | 'groups'>('approved');
-  const [isApproving, setIsApproving] = useState(false);
+  // Sub-tab inside Device Manager: Clean 2-tab view (Approved screens & Groups)
+  const [deviceSubTab, setDeviceSubTab] = useState<'approved' | 'groups'>('approved');
 
   // Add/Edit Group Modal
   const [showGroupModal, setShowGroupModal] = useState(false);
@@ -86,24 +85,19 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
   const [groupDescInput, setGroupDescInput] = useState('');
   const [groupBuildingIdInput, setGroupBuildingIdInput] = useState('building-a');
 
-  // Add/Edit Screen Modal
+  // Add & Approve / Edit Screen Modal
   const [showScreenModal, setShowScreenModal] = useState(false);
   const [editingScreen, setEditingScreen] = useState<ScreenDevice | null>(null);
+  const [screenIdInput, setScreenIdInput] = useState('');
   const [screenNameInput, setScreenNameInput] = useState('');
   const [screenGroupIdInput, setScreenGroupIdInput] = useState('');
   const [screenZoneInput, setScreenZoneInput] = useState<'cabin' | 'lobby'>('lobby');
   const [screenBuildingIdInput, setScreenBuildingIdInput] = useState('building-a');
   const [screenIpInput, setScreenIpInput] = useState('');
 
-  // Manual Register Modal
-  const [showManualModal, setShowManualModal] = useState(false);
-  const [manualIdInput, setManualIdInput] = useState('');
-  const [manualNameInput, setManualNameInput] = useState('');
-
   // Saving / Loading States to prevent duplicate form submissions
   const [isSavingScreen, setIsSavingScreen] = useState(false);
   const [isSavingGroup, setIsSavingGroup] = useState(false);
-  const [isSavingManual, setIsSavingManual] = useState(false);
 
   // Targeted Broadcast Selection State
   const [publishTargetType, setPublishTargetType] = useState<PublishTargetType>('groups');
@@ -138,7 +132,9 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
             setGroups(data.groups);
             setFormData((prev) => ({ ...prev, screenGroups: data.groups }));
           }
-          if (data.screens) setScreens(data.screens);
+          if (data.screens) {
+            setScreens(data.screens);
+          }
           if (data.publishHistory) setPublishHistory(data.publishHistory);
 
           if (!hasInitializedSelection && data.groups?.length > 0) {
@@ -159,28 +155,63 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
           setGroups(fsState.groups);
           setFormData((prev) => ({ ...prev, screenGroups: fsState.groups }));
         }
-        if (fsState.screens.length > 0) {
+        if (fsState.screens) {
           const now = Date.now();
-          setScreens(fsState.screens.map((scr) => ({
-            ...scr,
-            status: (now - (scr.lastSeen || 0) < 60000) ? 'online' : 'offline',
-          })));
+          setScreens(fsState.screens.map((scr) => {
+            const lastSeenTime = typeof scr.lastSeen === 'number' ? scr.lastSeen : (scr.lastSeen ? new Date(scr.lastSeen).getTime() : 0);
+            return {
+              ...scr,
+              status: (now - lastSeenTime < 60000) ? 'online' : 'offline',
+            };
+          }));
         }
-        if (fsState.history.length > 0) setPublishHistory(fsState.history);
+        if (fsState.history?.length > 0) setPublishHistory(fsState.history);
         if (!hasInitializedSelection && fsState.groups?.length > 0) {
           setSelectedGroupIds([fsState.groups[0].id]);
           setHasInitializedSelection(true);
         }
       } catch (fsErr) {
         console.warn('Firestore fallback sync state notice:', fsErr);
-        // If quota exceeded, pause auto-refresh
-        if (fsErr instanceof Error && fsErr.message.includes('resource-exhausted')) {
-            toast.error('Đã hết hạn mức Firestore, tạm dừng tự động làm mới.');
-        }
       }
     }
     setIsRefreshing(false);
-  }, [hasInitializedSelection, setFormData, toast]);
+  }, [hasInitializedSelection, setFormData]);
+
+  // Direct Firestore Refresh with User Toast Notification
+  const handleDirectFirestoreRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // 1. Direct Firestore fetch to guarantee 100% true database state
+      const fsState = await fetchFirestoreState();
+      if (fsState.groups && fsState.groups.length > 0) {
+        setGroups(fsState.groups);
+        setFormData((prev) => ({ ...prev, screenGroups: fsState.groups }));
+      }
+      const now = Date.now();
+      const mappedScreens = (fsState.screens || []).map((scr) => {
+        const lastSeenTime = typeof scr.lastSeen === 'number' ? scr.lastSeen : (scr.lastSeen ? new Date(scr.lastSeen).getTime() : 0);
+        return {
+          ...scr,
+          approved: scr.approved !== false,
+          status: (now - lastSeenTime < 60000) ? 'online' : 'offline',
+        };
+      });
+      setScreens(mappedScreens);
+      if (fsState.history) setPublishHistory(fsState.history);
+
+      // 2. Trigger server reload to sync in-memory cache
+      try {
+        await fetch('/api/screens/state');
+      } catch {}
+
+      toast.success(`Đã làm mới danh sách thiết bị từ Database (${mappedScreens.length} màn hình, ${fsState.groups.length} nhóm)`);
+    } catch (e) {
+      console.error('Lỗi làm mới dữ liệu:', e);
+      toast.error('Lỗi khi làm mới dữ liệu từ Database.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     let unsubGroups: any;
@@ -202,10 +233,13 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
         if (fsScreens) {
           const now = Date.now();
           setScreens(
-            fsScreens.map((scr) => ({
-              ...scr,
-              status: now - (scr.lastSeen ? new Date(scr.lastSeen).getTime() : 0) < 60000 ? 'online' : 'offline',
-            }))
+            fsScreens.map((scr) => {
+              const lastSeenTime = typeof scr.lastSeen === 'number' ? scr.lastSeen : (scr.lastSeen ? new Date(scr.lastSeen).getTime() : 0);
+              return {
+                ...scr,
+                status: (now - lastSeenTime < 60000) ? 'online' : 'offline',
+              };
+            })
           );
         }
       });
@@ -240,7 +274,7 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
 
   // Manual refresh helper
   const triggerManualRefresh = () => {
-    fetchServerState();
+    handleDirectFirestoreRefresh();
   };
 
   // Update override states when parent formData changes
@@ -272,15 +306,27 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
     setShowGroupModal(true);
   };
 
-  // Open Edit Screen
+  // Open Add Screen Modal
+  const handleOpenAddScreen = () => {
+    setEditingScreen(null);
+    setScreenIdInput('');
+    setScreenNameInput('');
+    setScreenGroupIdInput(groups[0]?.id || '');
+    setScreenZoneInput('lobby');
+    setScreenBuildingIdInput(formData.selectedBuildingId || formData.buildings?.[0]?.id || 'building-a');
+    setScreenIpInput('192.168.1.100');
+    setShowScreenModal(true);
+  };
+
+  // Open Edit Screen Modal
   const handleOpenEditScreen = (scr: ScreenDevice) => {
     setEditingScreen(scr);
-    setIsApproving(false);
+    setScreenIdInput(scr.id);
     setScreenNameInput(scr.name);
     setScreenGroupIdInput(scr.groupId);
     setScreenZoneInput(scr.zone || 'lobby');
-    setScreenBuildingIdInput(scr.buildingId || 'building-a');
-    setScreenIpInput(scr.ipAddress || '');
+    setScreenBuildingIdInput(scr.buildingId || formData.selectedBuildingId || 'building-a');
+    setScreenIpInput(scr.ipAddress || '192.168.1.100');
     setShowScreenModal(true);
   };
 
@@ -376,23 +422,26 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
     }
   };
 
-  // Handle Save Screen
+  // Handle Save Screen (Add & Approve or Update)
   const handleSaveScreen = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSavingScreen) return;
     if (!screenNameInput.trim() || !screenGroupIdInput) return;
 
+    let cleanId = (editingScreen ? editingScreen.id : (screenIdInput.trim() || `SCR-${Date.now().toString(36).slice(-5).toUpperCase()}`)).toUpperCase();
+    if (!cleanId.startsWith('SCR-') && !editingScreen) {
+      cleanId = `SCR-${cleanId}`;
+    }
+
+    const scrName = screenNameInput.trim();
+    const bldId = screenBuildingIdInput || formData.selectedBuildingId || 'building-a';
+    const zone = screenZoneInput;
+    const ip = screenIpInput.trim() || '192.168.1.100';
+
     setIsSavingScreen(true);
     try {
-      const scrId = editingScreen?.id || `SCR-${Date.now().toString().slice(-6)}`;
-      const scrName = screenNameInput.trim();
-      const bldId = screenBuildingIdInput || formData.selectedBuildingId || 'building-a';
-      const zone = screenZoneInput;
-      const ip = screenIpInput.trim() || '192.168.1.100';
-      const isAppr = true;
-
       const updatedScreen: ScreenDevice = {
-        id: scrId,
+        id: cleanId,
         name: scrName,
         groupId: screenGroupIdInput,
         buildingId: bldId,
@@ -400,15 +449,15 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
         ipAddress: ip,
         status: editingScreen?.status || 'online',
         lastSeen: editingScreen?.lastSeen || Date.now(),
-        approved: isAppr,
-        resolution: editingScreen?.resolution || '1920x1080 (16:9)',
+        approved: true,
+        resolution: editingScreen?.resolution || (zone === 'cabin' ? '1080x1920 (9:16)' : '1920x1080 (16:9)'),
       };
 
       // 1. Optimistic UI update
       setScreens((prev) => {
-        const exists = prev.some((scr) => scr.id === scrId);
+        const exists = prev.some((scr) => scr.id === cleanId);
         if (exists) {
-          return prev.map((scr) => (scr.id === scrId ? updatedScreen : scr));
+          return prev.map((scr) => (scr.id === cleanId ? updatedScreen : scr));
         }
         return [...prev, updatedScreen];
       });
@@ -416,83 +465,30 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
       // 2. Immediately close modal and notify user
       setShowScreenModal(false);
       setEditingScreen(null);
-      setIsApproving(false);
+      setScreenIdInput('');
       setScreenNameInput('');
       setScreenIpInput('');
-      toast.success(editingScreen ? 'Cập nhật thông tin màn hình thành công!' : 'Thêm màn hình mới thành công!');
-
-      // 3. Background sync
-      if (isApproving) {
-        approveScreenFirestore(scrId, scrName, screenGroupIdInput, bldId, zone).catch(() => {});
-        fetch('/api/screens/approve', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            screenId: scrId,
-            name: scrName,
-            groupId: screenGroupIdInput,
-            buildingId: bldId,
-            zone: zone,
-          }),
-        }).catch(() => {});
-      } else {
-        upsertScreenFirestore(updatedScreen).catch(() => {});
-        fetch('/api/screens/devices', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: scrId,
-            name: scrName,
-            groupId: screenGroupIdInput,
-            buildingId: bldId,
-            zone: zone,
-            ipAddress: ip,
-            approved: isAppr,
-          }),
-        }).catch(() => {});
-      }
-    } catch (e) {
-      console.error('Lỗi lưu thiết bị:', e);
-      toast.error('Có lỗi xảy ra khi lưu thiết bị');
-    } finally {
-      setIsSavingScreen(false);
-    }
-  };
-
-  // Handle 1-Click Direct Approval of Pending Screen
-  const handleQuickApprove = async (scr: ScreenDevice) => {
-    try {
-      const scrId = scr.id;
-      const scrName = scr.name || `Màn hình ${scrId}`;
-      const targetGroup = groups[0]?.id || 'grp-1';
-      const targetBld = scr.buildingId || formData.selectedBuildingId || 'building-a';
-      const targetZone = scr.zone || 'lobby';
-
-      // 1. Optimistic UI update
-      setScreens((prev) =>
-        prev.map((s) => (s.id === scrId ? { ...s, approved: true, name: scrName, groupId: targetGroup } : s))
+      toast.success(
+        editingScreen
+          ? `Đã cập nhật thông tin màn hình ${cleanId}!`
+          : `🎉 Đã thêm và phê duyệt thành công thiết bị: ${cleanId}!`
       );
 
-      toast.success(`🎉 Phê duyệt thành công màn hình ${scrId}!`);
+      // 3. Direct Firestore sync
+      await approveScreenFirestore(cleanId, scrName, screenGroupIdInput, bldId, zone);
+      await upsertScreenFirestore(updatedScreen);
 
-      // 2. Background sync
-      approveScreenFirestore(scrId, scrName, targetGroup, targetBld, targetZone).catch(() => {});
-      await fetch('/api/screens/approve', {
+      // 4. Background API sync
+      fetch('/api/screens/devices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          screenId: scrId,
-          name: scrName,
-          groupId: targetGroup,
-          buildingId: targetBld,
-          zone: targetZone,
-        }),
-      });
-
-      fetchServerState();
+        body: JSON.stringify(updatedScreen),
+      }).catch(() => {});
     } catch (e) {
-      console.error('Lỗi duyệt nhanh thiết bị:', e);
-      toast.error(`Lỗi khi duyệt thiết bị ${scr.id}`);
+      console.error('Lỗi lưu thiết bị:', e);
+      toast.error('Có lỗi xảy ra khi lưu thiết bị. Vui lòng thử lại.');
+    } finally {
+      setIsSavingScreen(false);
     }
   };
 
@@ -515,8 +511,8 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
         });
       } catch {}
 
-      await fetchServerState();
-      toast.info(`Đã khóa thành công màn hình ${screenId}. Thiết bị đã chuyển về trạng thái chờ duyệt.`);
+      await handleDirectFirestoreRefresh();
+      toast.info(`Đã khóa thành công màn hình ${screenId}.`);
     } catch (e) {
       console.error('Lỗi thu hồi quyền thiết bị:', e);
       toast.error(`Lỗi khi khóa thiết bị ${screenId}. Vui lòng thử lại.`);
@@ -529,92 +525,25 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
   };
 
   const executeDeleteScreen = async (id: string) => {
-    // Optimistic UI Update
+    // 1. Optimistic UI Update (instant removal from UI)
     setScreens((prev) => prev.filter((scr) => scr.id !== id));
-    
+    setScreenToDelete(null);
+
     try {
-      // Direct Firestore deletion
+      // 2. Direct Firestore deletion
       await deleteScreenFirestore(id);
 
-      // Optional API sync
+      // 3. API sync
       try {
         await fetch(`/api/screens/devices/${encodeURIComponent(id)}`, { method: 'DELETE' });
       } catch {}
 
-      toast.success(`Đã xóa thành công màn hình ${id}.`);
+      toast.success(`Đã xóa vĩnh viễn màn hình ${id} khỏi cơ sở dữ liệu.`);
     } catch (e) {
       console.error('Lỗi xóa thiết bị:', e);
       // Rollback on error
-      await fetchServerState();
+      await handleDirectFirestoreRefresh();
       toast.error(`Lỗi khi xóa thiết bị ${id}. Vui lòng thử lại.`);
-    }
-  };
-
-  // Handle Manual Register & Approve Screen ID
-  const handleManualSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSavingManual) return;
-    if (!manualIdInput.trim()) return;
-    const cleanId = manualIdInput.trim().toUpperCase();
-    const name = manualNameInput.trim() || `Màn hình ${cleanId}`;
-    const targetGroup = groups[0]?.id || 'grp-1';
-    const targetBld = formData.selectedBuildingId || 'building-a';
-
-    setIsSavingManual(true);
-    try {
-      // 1. Optimistic UI Update
-      setScreens((prev) => {
-        const exists = prev.some((s) => s.id === cleanId);
-        if (exists) {
-          return prev.map((scr) =>
-            scr.id === cleanId ? { ...scr, approved: true, name: name } : scr
-          );
-        }
-        return [
-          ...prev,
-          {
-            id: cleanId,
-            name: name,
-            groupId: targetGroup,
-            buildingId: targetBld,
-            zone: 'lobby',
-            ipAddress: '192.168.1.150',
-            status: 'online',
-            lastSeen: Date.now(),
-            approved: true,
-            resolution: '1920x1080 (16:9)',
-          },
-        ];
-      });
-
-      // 2. Immediately close modal and notify user
-      setShowManualModal(false);
-      setManualIdInput('');
-      setManualNameInput('');
-      toast.success(`🎉 Đã thêm và phê duyệt thành công ID thiết bị: ${cleanId}`);
-
-      // 3. Background sync
-      approveScreenFirestore(cleanId, name, targetGroup, targetBld, 'lobby').catch(() => {});
-      fetch('/api/screens/devices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: cleanId,
-          name: name,
-          groupId: targetGroup,
-          buildingId: targetBld,
-          zone: 'lobby',
-          ipAddress: '192.168.1.150',
-          approved: true,
-        }),
-      }).catch(() => {});
-    } catch (e) {
-      console.error('Lỗi đăng ký thủ công:', e);
-      setShowManualModal(false);
-      setManualIdInput('');
-      setManualNameInput('');
-    } finally {
-      setIsSavingManual(false);
     }
   };
 
@@ -1088,299 +1017,185 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
       {activeTab === 'devices' && (
         <div className="space-y-4">
 
-          <div className="flex items-center justify-between bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+          {/* Sub-tab Navigation & Actions Bar */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-900 p-2.5 rounded-xl border border-slate-800">
             <div className="flex gap-2">
               <button
                 onClick={() => setDeviceSubTab('approved')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   deviceSubTab === 'approved'
-                    ? 'bg-cyan-500 text-slate-950'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
                 }`}
               >
-                Đã Duyệt ({screens.filter((s) => s.approved === true).length})
-              </button>
-              <button
-                onClick={() => setDeviceSubTab('pending')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                  deviceSubTab === 'pending'
-                    ? 'bg-amber-500 text-slate-950'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Chờ Duyệt ({screens.filter((s) => s.approved !== true).length})
+                Màn Hình Đã Duyệt ({screens.length})
               </button>
               <button
                 onClick={() => setDeviceSubTab('groups')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   deviceSubTab === 'groups'
-                    ? 'bg-cyan-500 text-slate-950'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
                 }`}
               >
                 Nhóm Màn Hình ({groups.length})
               </button>
             </div>
 
-            {user.role === 'admin' && (
-              <div className="flex items-center gap-2">
-                {deviceSubTab === 'approved' && (
-                  <button
-                    onClick={() => {
-                      setEditingScreen(null);
-                      setIsApproving(false);
-                      setScreenNameInput('');
-                      setScreenGroupIdInput(groups[0]?.id || '');
-                      setScreenZoneInput('lobby');
-                      setScreenIpInput('');
-                      setShowScreenModal(true);
-                    }}
-                    className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Thêm Màn Hình Mới 2
-                  </button>
-                )}
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              {/* Nút Làm Mới Dữ Liệu từ Database */}
+              <button
+                type="button"
+                onClick={handleDirectFirestoreRefresh}
+                disabled={isRefreshing}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-slate-200 font-bold text-xs flex items-center gap-2 cursor-pointer border border-slate-700 shadow-sm transition-all disabled:opacity-50"
+                title="Đồng bộ trực tiếp với Database Firestore để loại bỏ màn hình rác / ghost devices"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-cyan-400' : 'text-slate-400'}`} />
+                <span>{isRefreshing ? 'Đang Tải...' : 'Làm Mới Dữ Liệu'}</span>
+              </button>
 
-                {deviceSubTab === 'pending' && (
-                  <button
-                    type="button"
-                    onClick={() => setShowManualModal(true)}
-                    className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Thêm & Duyệt Thủ Công ID
-                  </button>
-                )}
-              </div>
-            )}
+              {user.role === 'admin' && (
+                <>
+                  {deviceSubTab === 'approved' && (
+                    <button
+                      type="button"
+                      onClick={handleOpenAddScreen}
+                      className="px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-lg shadow-cyan-500/20 transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5 stroke-[2.5]" /> Thêm & Duyệt Thiết Bị
+                    </button>
+                  )}
+
+                  {deviceSubTab === 'groups' && (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenAddGroup()}
+                      className="px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-lg shadow-cyan-500/20 transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5 stroke-[2.5]" /> Tạo Nhóm Mới
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
 
           {/* SUBTAB 1: MÀN HÌNH ĐÃ DUYỆT */}
           {deviceSubTab === 'approved' && (
             <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900">
-              <table className="w-full text-left text-xs text-slate-300">
-                <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-800">
-                  <tr>
-                    <th className="p-3">Tên Màn Hình</th>
-                    <th className="p-3">Thuộc Nhóm</th>
-                    <th className="p-3">Khu Vực</th>
-                    <th className="p-3">Địa Chỉ IP</th>
-                    <th className="p-3">Trạng Thái</th>
-                    <th className="p-3 text-right">Thao Tác</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800">
-                  {screens.filter((s) => s.approved === true).map((scr) => {
-                    const grp = groups.find((g) => g.id === scr.groupId);
-                    return (
-                      <tr key={scr.id} className="hover:bg-slate-800/50 transition-colors">
-                        <td className="p-3 font-semibold text-white">
-                          <div className="flex flex-col">
-                            <span>{scr.name}</span>
-                            <span className="text-[10px] text-slate-500 font-mono">{scr.id}</span>
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <span className="px-2 py-0.5 rounded bg-slate-800 text-cyan-300 font-medium border border-slate-700">
-                            {grp?.name || scr.groupId}
-                          </span>
-                        </td>
-                        <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
-                            scr.zone === 'cabin' 
-                              ? 'bg-purple-950/60 text-purple-300 border border-purple-800' 
-                              : 'bg-blue-950/60 text-blue-300 border border-blue-800'
-                          }`}>
-                            {scr.zone === 'cabin' ? '🛗 Cabin Thang' : '🏢 Sảnh Thang'}
-                          </span>
-                        </td>
-                        <td className="p-3 font-mono text-slate-400">{scr.ipAddress || '192.168.1.100'}</td>
-                        <td className="p-3">
-                          {scr.status === 'online' ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Online
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30 inline-block">
-                              Offline
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-3 text-right flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              window.open(`/?screenId=${scr.id}&view=display`, '_blank');
-                            }}
-                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 border border-indigo-700/60 flex items-center gap-1 cursor-pointer transition-all"
-                            title="Mở màn hình TV này trong một tab trình duyệt mới để xem trực tiếp"
-                          >
-                            <ExternalLink className="w-3 h-3 text-cyan-300" />
-                            Xem Màn Hình TV (Tab Mới)
-                          </button>
-
-                          {user.role === 'admin' ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setIsApproving(false);
-                                  handleOpenEditScreen(scr);
-                                }}
-                                className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 transition-colors"
-                                title="Sửa thông tin màn hình"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleRevokeScreen(scr.id)}
-                                className="p-1.5 rounded bg-slate-800 hover:bg-amber-950 text-amber-400 transition-colors"
-                                title="Hủy duyệt / Thu hồi quyền truy cập"
-                              >
-                                <Lock className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteScreen(scr.id)}
-                                className="p-1.5 rounded bg-slate-800 hover:bg-rose-950 text-rose-400 transition-colors"
-                                title="Xóa màn hình"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </>
-                          ) : null}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* SUBTAB 1B: MÀN HÌNH CHỜ DUYỆT */}
-          {deviceSubTab === 'pending' && (
-            <div className="space-y-4">
-              {/* Quick Code Activation Card */}
-              <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-amber-500/10 rounded-xl text-amber-400 border border-amber-500/20">
-                    <CheckCircle className="w-5 h-5" />
-                  </div>
+              {screens.length === 0 ? (
+                <div className="p-12 text-center text-slate-500 space-y-4">
+                  <Monitor className="w-12 h-12 text-slate-700 mx-auto mb-1" />
                   <div>
-                    <h4 className="text-xs font-bold text-white">Kích Hoạt Nhanh Mã Thiết Bị</h4>
-                    <p className="text-[11px] text-slate-400">Nhập mã bất kỳ (VD: <span className="font-mono text-cyan-400">SCR-04NU9</span> hoặc <span className="font-mono text-cyan-400">04NU9</span>) để phê duyệt tức thì</p>
+                    <p className="font-bold text-slate-400 text-sm">Chưa có thiết bị màn hình nào</p>
+                    <p className="text-xs text-slate-600 mt-1 max-w-md mx-auto">
+                      Hệ thống đang hoạt động theo phương án duyệt thủ công. Bấm nút <strong>&quot;Thêm & Duyệt Thiết Bị&quot;</strong> ở góc phải để khai báo và phê duyệt thiết bị TV mới.
+                    </p>
                   </div>
+                  {user.role === 'admin' && (
+                    <button
+                      type="button"
+                      onClick={handleOpenAddScreen}
+                      className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs inline-flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" /> Thêm & Duyệt Thiết Bị Ngay
+                    </button>
+                  )}
                 </div>
-
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <input
-                    type="text"
-                    placeholder="VD: SCR-04NU9"
-                    value={manualIdInput}
-                    onChange={(e) => setManualIdInput(e.target.value.toUpperCase())}
-                    className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs font-mono font-bold text-amber-400 focus:outline-none focus:border-amber-500 w-full sm:w-44"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!manualIdInput.trim()) {
-                        toast.error('Vui lòng nhập Mã Thiết Bị (VD: SCR-04NU9)');
-                        return;
-                      }
-                      let rawId = manualIdInput.trim().toUpperCase();
-                      if (!rawId.startsWith('SCR-')) rawId = 'SCR-' + rawId;
-                      handleQuickApprove({ id: rawId, name: `Màn hình ${rawId}` } as any);
-                      setManualIdInput('');
-                    }}
-                    className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl cursor-pointer shadow-md transition-all whitespace-nowrap"
-                  >
-                    ⚡ Duyệt Ngay 1-Click
-                  </button>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900">
-                {screens.filter((s) => s.approved !== true).length === 0 ? (
-                  <div className="p-12 text-center text-slate-500 space-y-4">
-                    <Monitor className="w-12 h-12 text-slate-700 mx-auto mb-1" />
-                    <div>
-                      <p className="font-bold text-slate-400">Không có thiết bị nào đang chờ duyệt</p>
-                      <p className="text-xs text-slate-600 mt-1 max-w-sm mx-auto">
-                        Khi một thiết bị Android TV hoặc đầu phát truy cập hệ thống bằng Mã thiết bị mới, yêu cầu duyệt sẽ hiển thị tại đây.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <table className="w-full text-left text-xs text-slate-300">
-                  <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+              ) : (
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-800 tracking-wider">
                     <tr>
-                      <th className="p-3">Mã Thiết Bị (ID)</th>
+                      <th className="p-3">Mã Thiết Bị (ID) & Tên</th>
+                      <th className="p-3">Thuộc Nhóm</th>
+                      <th className="p-3">Khu Vực (Zone)</th>
                       <th className="p-3">Địa Chỉ IP</th>
-                      <th className="p-3">Thời Gian Yêu Cầu</th>
-                      <th className="p-3">Kết Nối</th>
+                      <th className="p-3">Trạng Thái</th>
                       <th className="p-3 text-right">Thao Tác</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800">
-                    {screens.filter((s) => s.approved !== true).map((scr) => (
-                      <tr key={scr.id} className="hover:bg-slate-800/50 transition-colors">
-                        <td className="p-3 font-mono font-bold text-amber-400">{scr.id}</td>
-                        <td className="p-3 font-mono text-slate-400">{scr.ipAddress || '127.0.0.1'}</td>
-                        <td className="p-3 text-slate-400">
-                          {scr.requestedAt ? new Date(scr.requestedAt).toLocaleString('vi-VN') : 'Mới đây'}
-                        </td>
-                        <td className="p-3">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Đang Kết Nối (Heartbeat)
-                          </span>
-                        </td>
-                        <td className="p-3 text-right flex items-center justify-end gap-1.5">
-                          {currentUser?.role === 'admin' ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => handleQuickApprove(scr)}
-                                className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-cyan-600 hover:bg-cyan-500 text-white shadow-md flex items-center gap-1 cursor-pointer transition-colors"
-                                title="Phê duyệt ngay lập tức thiết bị này"
-                              >
-                                <CheckCircle className="w-3.5 h-3.5" /> Duyệt Nhanh 1-Click
-                              </button>
+                    {screens.map((scr) => {
+                      const grp = groups.find((g) => g.id === scr.groupId);
+                      return (
+                        <tr key={scr.id} className="hover:bg-slate-800/50 transition-colors">
+                          <td className="p-3 font-semibold text-white">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-bold text-slate-100">{scr.name}</span>
+                              <span className="text-[11px] text-cyan-400 font-mono font-bold tracking-wider">{scr.id}</span>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <span className="px-2.5 py-1 rounded-lg bg-slate-950 text-cyan-300 font-medium border border-slate-800 text-[11px]">
+                              {grp?.name || scr.groupId}
+                            </span>
+                          </td>
+                          <td className="p-3">
+                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
+                              scr.zone === 'cabin' 
+                                ? 'bg-purple-950/60 text-purple-300 border border-purple-800/60' 
+                                : 'bg-blue-950/60 text-blue-300 border border-blue-800/60'
+                            }`}>
+                              {scr.zone === 'cabin' ? '🛗 Trong Cabin (9:16)' : '🏢 Ngoài Sảnh (16:9)'}
+                            </span>
+                          </td>
+                          <td className="p-3 font-mono text-slate-400">{scr.ipAddress || '192.168.1.100'}</td>
+                          <td className="p-3">
+                            {scr.status === 'online' ? (
+                              <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Online
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700 inline-block">
+                                Offline
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setEditingScreen(scr);
-                                  setIsApproving(true);
-                                  setScreenNameInput(`Màn hình ${scr.id}`);
-                                  setScreenGroupIdInput(groups[0]?.id || '');
-                                  setScreenZoneInput('lobby');
-                                  setScreenIpInput(scr.ipAddress || '');
-                                  setShowScreenModal(true);
+                                  window.open(`/?screenId=${scr.id}&view=display`, '_blank');
                                 }}
-                                className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 shadow-md flex items-center gap-1 cursor-pointer transition-colors"
-                                title="Tùy chỉnh tên và chọn nhóm trước khi phê duyệt"
+                                className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/60 flex items-center gap-1.5 cursor-pointer transition-all shadow-sm"
+                                title="Mở màn hình TV này trong một tab trình duyệt mới để xem trực tiếp"
                               >
-                                Tùy Chỉnh & Phê Duyệt
+                                <ExternalLink className="w-3 h-3 text-cyan-400" />
+                                <span>Xem TV</span>
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteScreen(scr.id)}
-                                className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-rose-400 border border-slate-700 transition-colors"
-                                title="Từ chối / Xóa yêu cầu duyệt"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </>
-                          ) : null}
-                        </td>
-                      </tr>
-                    ))}
+
+                              {user.role === 'admin' && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEditScreen(scr)}
+                                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 transition-colors cursor-pointer"
+                                    title="Sửa thông tin màn hình"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteScreen(scr.id)}
+                                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-rose-400 border border-slate-700 transition-colors cursor-pointer"
+                                    title="Xóa vĩnh viễn màn hình khỏi hệ thống"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
             </div>
-          </div>
-        )}
+          )}
 
           {/* SUBTAB 2: NHÓM */}
           {deviceSubTab === 'groups' && (
@@ -1597,18 +1412,19 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
         </div>
       )}
 
-      {/* MODAL: THÊM / SỬA MÀN HÌNH */}
+      {/* MODAL: THÊM & DUYỆT HOẶC CHỈNH SỬA MÀN HÌNH */}
       {showScreenModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-2xl">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-              <h4 className="font-bold text-white text-sm">
-                {editingScreen ? 'Chỉnh Sửa Thông Tin Màn Hình' : 'Khai Báo Màn Hình Mới'}
+              <h4 className="font-bold text-white text-sm flex items-center gap-2">
+                <Monitor className="w-4 h-4 text-cyan-400" />
+                {editingScreen ? 'Chỉnh Sửa Thông Tin Màn Hình' : 'Thêm & Phê Duyệt Thiết Bị Mới'}
               </h4>
               <button 
                 onClick={() => !isSavingScreen && setShowScreenModal(false)} 
                 disabled={isSavingScreen}
-                className="text-slate-400 hover:text-white disabled:opacity-30"
+                className="text-slate-400 hover:text-white disabled:opacity-30 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1616,7 +1432,33 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
 
             <form onSubmit={handleSaveScreen} className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Tên thiết bị màn hình:</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1">
+                  Mã thiết bị (Device ID trên TV):
+                </label>
+                {editingScreen ? (
+                  <div className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-cyan-400 font-mono text-xs font-bold flex items-center justify-between">
+                    <span>{editingScreen.id}</span>
+                    <span className="text-[10px] text-slate-500 font-sans font-normal">Mã cố định</span>
+                  </div>
+                ) : (
+                  <div>
+                    <input
+                      type="text"
+                      disabled={isSavingScreen}
+                      value={screenIdInput}
+                      onChange={(e) => setScreenIdInput(e.target.value.toUpperCase())}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-cyan-400 font-mono font-bold text-xs outline-none focus:border-cyan-400 disabled:opacity-60"
+                      placeholder="VD: SCR-04NU9 (Để trống hệ thống sẽ tự tạo mã)"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Nhập mã đang hiển thị trên màn hình TV của bạn hoặc để trống để sinh mã tự động.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1">Tên thiết bị / Vị trí hiển thị:</label>
                 <input
                   type="text"
                   required
@@ -1629,12 +1471,12 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Thuộc nhóm:</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1">Thuộc nhóm màn hình:</label>
                 <select
                   disabled={isSavingScreen}
                   value={screenGroupIdInput}
                   onChange={(e) => setScreenGroupIdInput(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-cyan-300 text-xs outline-none focus:border-cyan-400 disabled:opacity-60"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-cyan-300 text-xs outline-none focus:border-cyan-400 disabled:opacity-60 cursor-pointer"
                 >
                   {groups.map((g) => (
                     <option key={g.id} value={g.id}>
@@ -1650,10 +1492,10 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
                   disabled={isSavingScreen}
                   value={screenZoneInput}
                   onChange={(e) => setScreenZoneInput(e.target.value as 'cabin' | 'lobby')}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-slate-200 text-xs outline-none focus:border-cyan-400 disabled:opacity-60"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-slate-200 text-xs outline-none focus:border-cyan-400 disabled:opacity-60 cursor-pointer"
                 >
-                  <option value="lobby">🏢 Ngoài Sảnh Thang (Màn hình 16:9 ngang)</option>
-                  <option value="cabin">🛗 Trong Cabin Thang (Màn hình 9:16 dọc)</option>
+                  <option value="lobby">🏢 Ngoài Sảnh Thang (Màn hình ngang 16:9)</option>
+                  <option value="cabin">🛗 Trong Cabin Thang (Màn hình dọc 9:16)</option>
                 </select>
               </div>
 
@@ -1663,7 +1505,7 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
                   disabled={isSavingScreen}
                   value={screenBuildingIdInput}
                   onChange={(e) => setScreenBuildingIdInput(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-slate-200 text-xs outline-none focus:border-cyan-400 disabled:opacity-60"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-slate-200 text-xs outline-none focus:border-cyan-400 disabled:opacity-60 cursor-pointer"
                 >
                   {(formData.buildings || []).map((b) => (
                     <option key={b.id} value={b.id}>
@@ -1705,84 +1547,7 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
                       <span>Đang Lưu...</span>
                     </>
                   ) : (
-                    <span>{editingScreen ? 'Lưu Thay Đổi' : 'Khai Báo Màn Hình'}</span>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: THÊM & DUYỆT THỦ CÔNG MÃ THIẾT BỊ */}
-      {showManualModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-2xl">
-            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-              <h4 className="font-bold text-white text-sm flex items-center gap-2">
-                <Monitor className="w-4 h-4 text-amber-400" /> Thêm & Duyệt Thủ Công Thiết Bị TV
-              </h4>
-              <button 
-                onClick={() => !isSavingManual && setShowManualModal(false)} 
-                disabled={isSavingManual}
-                className="text-slate-400 hover:text-white disabled:opacity-30"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleManualSubmit} className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Mã thiết bị (Device ID hiển thị trên TV):</label>
-                <input
-                  type="text"
-                  required
-                  disabled={isSavingManual}
-                  value={manualIdInput}
-                  onChange={(e) => setManualIdInput(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs outline-none focus:border-amber-400 font-mono disabled:opacity-60"
-                  placeholder="Ví dụ: SCR-L9L29"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Tên hiển thị màn hình (Tùy chọn):</label>
-                <input
-                  type="text"
-                  disabled={isSavingManual}
-                  value={manualNameInput}
-                  onChange={(e) => setManualNameInput(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs outline-none focus:border-amber-400 disabled:opacity-60"
-                  placeholder="Ví dụ: Màn hình Sảnh Tầng 1"
-                />
-              </div>
-
-              <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800 text-[11px] text-slate-400 space-y-1">
-                <p className="text-amber-400 font-medium">💡 Hướng dẫn:</p>
-                <p>Nhập đúng Mã thiết bị đang hiển thị trên màn hình TV của bạn. Hệ thống sẽ tự động thêm và phê duyệt thiết bị này để phát nội dung ngay lập tức.</p>
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  disabled={isSavingManual}
-                  onClick={() => setShowManualModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-medium hover:bg-slate-700 disabled:opacity-50 cursor-pointer"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingManual}
-                  className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer shadow-lg shadow-amber-500/20"
-                >
-                  {isSavingManual ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Đang Xử Lý...</span>
-                    </>
-                  ) : (
-                    <span>Xác Nhận Thêm & Duyệt</span>
+                    <span>{editingScreen ? 'Lưu Thay Đổi' : 'Xác Nhận Thêm & Phê Duyệt'}</span>
                   )}
                 </button>
               </div>
