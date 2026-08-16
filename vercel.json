@@ -1,22 +1,8 @@
 {
-  "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "package.json",
-      "use": "@vercel/node",
-      "config": {
-        "buildCommand": "npm install && npm run build"
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "dist/server.cjs"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "dist/server.cjs"
+      "source": "/(.*)",
+      "destination": "/dist/server.cjs"
     }
   ]
 }
