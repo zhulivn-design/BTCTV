@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Settings } from 'lucide-react';
-import { TVConfig, DPadDirection } from './types';
+import { TVConfig, DPadDirection, ScreenDevice } from './types';
 import { DEFAULT_CONFIG } from './data/presets';
 import { ElevatorSignagePlayer } from './components/ElevatorSignagePlayer';
 import { TVOSDBar } from './components/TVOSDBar';
@@ -205,10 +205,24 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Real-time single screen approval listener from Firestore (1 read on connect, 0 continuous reads!)
+  const [myScreenData, setMyScreenData] = useState<ScreenDevice | null>(() => {
+    try {
+      const cached = localStorage.getItem(`tv_screen_data_${screenId}`);
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Real-time single screen approval & assignment listener from Firestore
   useEffect(() => {
     const unsubscribe = subscribeSingleScreenFirestore(screenId, (me) => {
       if (me) {
+        setMyScreenData(me);
+        try {
+          localStorage.setItem(`tv_screen_data_${screenId}`, JSON.stringify(me));
+        } catch {}
+
         if (me.approved !== undefined) {
           const isAppr = Boolean(me.approved);
           setIsDeviceApproved(isAppr);
@@ -217,14 +231,13 @@ export default function App() {
         }
         if (me.groupId) {
           setScreenGroupId(me.groupId);
+          localStorage.setItem('android_tv_webview_screen_group_id', me.groupId);
         }
       }
     });
 
     return () => unsubscribe();
   }, [screenId]);
-
-
 
   // Save config changes to localStorage & Firestore
   const handleSaveConfig = async (newConfig: TVConfig) => {
@@ -258,17 +271,24 @@ export default function App() {
     setReloadToken(Date.now());
   };
 
-  // Resolve active building and zone config dynamically to ensure perfect alignment with player and prevent out-of-sync indexes
-  const activeBuilding = (config.buildings || []).find((b) => b.id === config.selectedBuildingId) || config.buildings?.[0];
+  // Resolve active building and zone config dynamically based on this screen's assigned properties
+  const effectiveBuildingId = myScreenData?.buildingId || config.selectedBuildingId || config.buildings?.[0]?.id;
+  const effectiveZone = myScreenData?.zone || config.selectedZone || 'lobby';
+  const effectiveGroupId = myScreenData?.groupId || screenGroupId || config.selectedGroupId || config.screenGroups?.[0]?.id || '';
+
+  const activeBuilding = (config.buildings || []).find((b) => b.id === effectiveBuildingId) || config.buildings?.[0];
   const activeZoneConfig = activeBuilding
-    ? (config.selectedZone === 'cabin' ? activeBuilding.cabinConfig : activeBuilding.lobbyConfig)
+    ? (effectiveZone === 'cabin' ? activeBuilding.cabinConfig : activeBuilding.lobbyConfig)
     : null;
 
-  const currentSlidesSource = activeZoneConfig?.slides || config.slides || [];
+  const currentSlidesSource = myScreenData?.assignedConfig?.slides && myScreenData.assignedConfig.slides.length > 0
+    ? myScreenData.assignedConfig.slides
+    : (activeZoneConfig?.slides || config.slides || []);
+
   const targetedSlides = currentSlidesSource.filter((s) => {
     if (!s.enabled) return false;
     if (s.targetScope === 'groups') {
-      return s.targetGroupIds && s.targetGroupIds.includes(screenGroupId);
+      return s.targetGroupIds && s.targetGroupIds.includes(effectiveGroupId);
     }
     return true;
   });
@@ -277,9 +297,9 @@ export default function App() {
     ? targetedSlides
     : currentSlidesSource.filter((s) => s.enabled !== false);
 
-  const slideshowEnabled = activeZoneConfig
-    ? (activeZoneConfig.slideshowEnabled !== false && config.slideshowEnabled !== false)
-    : config.slideshowEnabled;
+  const slideshowEnabled = myScreenData?.assignedConfig?.slideshowEnabled !== undefined
+    ? myScreenData.assignedConfig.slideshowEnabled
+    : (activeZoneConfig ? (activeZoneConfig.slideshowEnabled !== false && config.slideshowEnabled !== false) : config.slideshowEnabled);
 
   // Ensure currentSlideIndex stays within bounds when active slides list changes
   useEffect(() => {
@@ -495,6 +515,7 @@ export default function App() {
       {/* Main Display: Elevator Signage Player */}
       <ElevatorSignagePlayer
         config={config}
+        screenData={myScreenData}
         onOpenSettings={() => setShowSettings(true)}
         reloadToken={reloadToken}
         isPaused={isPaused}
@@ -503,7 +524,7 @@ export default function App() {
         onPrevSlide={handlePrevSlide}
         currentSlideIndex={currentSlideIndex}
         setCurrentSlideIndex={setCurrentSlideIndex}
-        screenGroupId={screenGroupId}
+        screenGroupId={effectiveGroupId}
       />
 
       {/* Top OSD Bar */}

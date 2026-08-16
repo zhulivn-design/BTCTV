@@ -469,9 +469,11 @@ interface ScreenDeviceData {
   lastSeen: number;
   ipAddress?: string;
   resolution?: string;
+  orientation?: '16:9' | '9:16' | '4:3';
   assignedConfig?: any;
   approved?: boolean;
   requestedAt?: number;
+  lastPublishedAt?: number;
 }
 
 const SCREENS_FILE = path.join(process.cwd(), "screens.json");
@@ -1129,7 +1131,7 @@ app.delete("/api/screens/groups/:id", async (req, res) => {
 
 // API: Add/Update Screen Device
 app.post("/api/screens/devices", async (req, res) => {
-  const { id, name, groupId, buildingId, zone, ipAddress, resolution, approved } = req.body;
+  const { id, name, groupId, buildingId, zone, ipAddress, resolution, orientation, approved } = req.body;
   if (!name || !groupId) {
     return res.status(400).json({ ok: false, error: "Tên màn hình và Nhóm không được để trống" });
   }
@@ -1148,6 +1150,7 @@ app.post("/api/screens/devices", async (req, res) => {
       zone: zone || screenDevicesStore[existingIdx].zone,
       ipAddress: ipAddress || screenDevicesStore[existingIdx].ipAddress,
       resolution: resolution || screenDevicesStore[existingIdx].resolution,
+      orientation: orientation || screenDevicesStore[existingIdx].orientation,
       approved: approved !== undefined ? Boolean(approved) : (screenDevicesStore[existingIdx].approved ?? true),
       lastSeen: Date.now(),
       status: 'online',
@@ -1164,6 +1167,7 @@ app.post("/api/screens/devices", async (req, res) => {
       lastSeen: Date.now(),
       ipAddress: ipAddress || '192.168.1.100',
       resolution: resolution || '1920x1080 (16:9)',
+      orientation: orientation || (zone === 'cabin' ? '9:16' : '16:9'),
       approved: approved !== undefined ? Boolean(approved) : true,
     };
     screenDevicesStore.push(targetScreen);
@@ -1192,7 +1196,7 @@ app.delete("/api/screens/devices/:id", async (req, res) => {
 
 // API: Approve Screen Device
 app.post("/api/screens/approve", async (req, res) => {
-  const { screenId, name, groupId, buildingId, zone } = req.body;
+  const { screenId, name, groupId, buildingId, zone, orientation, resolution } = req.body;
   const cleanId = normalizeScreenId(screenId);
   let screen = findScreenById(cleanId);
 
@@ -1209,10 +1213,11 @@ app.post("/api/screens/approve", async (req, res) => {
       groupId: validGroup,
       buildingId: targetBld,
       zone: targetZone,
+      orientation: orientation || (targetZone === 'cabin' ? '9:16' : '16:9'),
       status: 'online',
       lastSeen: Date.now(),
       ipAddress: '192.168.1.100',
-      resolution: '1920x1080 (16:9)',
+      resolution: resolution || (orientation === '9:16' || targetZone === 'cabin' ? '1080x1920 (9:16)' : '1920x1080 (16:9)'),
       approved: true,
     };
     screenDevicesStore.push(screen);
@@ -1222,6 +1227,8 @@ app.post("/api/screens/approve", async (req, res) => {
     screen.groupId = validGroup;
     if (buildingId) screen.buildingId = buildingId;
     if (zone) screen.zone = zone;
+    if (orientation) screen.orientation = orientation;
+    if (resolution) screen.resolution = resolution;
     screen.lastSeen = Date.now();
     screen.status = 'online';
   }

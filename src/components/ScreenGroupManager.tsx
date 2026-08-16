@@ -36,7 +36,8 @@ import {
   ScreenDevice,
   PublishTargetType,
   PublishHistoryItem,
-  ZoneConfig
+  ZoneConfig,
+  DisplayOrientation
 } from '../types';
 import { useToast } from './Toast';
 import {
@@ -92,6 +93,7 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
   const [screenNameInput, setScreenNameInput] = useState('');
   const [screenGroupIdInput, setScreenGroupIdInput] = useState('');
   const [screenZoneInput, setScreenZoneInput] = useState<'cabin' | 'lobby'>('lobby');
+  const [screenOrientationInput, setScreenOrientationInput] = useState<DisplayOrientation>('16:9');
   const [screenBuildingIdInput, setScreenBuildingIdInput] = useState('building-a');
   const [screenIpInput, setScreenIpInput] = useState('');
 
@@ -313,6 +315,7 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
     setScreenNameInput('');
     setScreenGroupIdInput(groups[0]?.id || '');
     setScreenZoneInput('lobby');
+    setScreenOrientationInput('16:9');
     setScreenBuildingIdInput(formData.selectedBuildingId || formData.buildings?.[0]?.id || 'building-a');
     setScreenIpInput('192.168.1.100');
     setShowScreenModal(true);
@@ -325,6 +328,8 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
     setScreenNameInput(scr.name);
     setScreenGroupIdInput(scr.groupId);
     setScreenZoneInput(scr.zone || 'lobby');
+    const defaultOr: DisplayOrientation = scr.orientation || (scr.resolution?.includes('9:16') || scr.zone === 'cabin' ? '9:16' : scr.resolution?.includes('4:3') ? '4:3' : '16:9');
+    setScreenOrientationInput(defaultOr);
     setScreenBuildingIdInput(scr.buildingId || formData.selectedBuildingId || 'building-a');
     setScreenIpInput(scr.ipAddress || '192.168.1.100');
     setShowScreenModal(true);
@@ -436,7 +441,9 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
     const scrName = screenNameInput.trim();
     const bldId = screenBuildingIdInput || formData.selectedBuildingId || 'building-a';
     const zone = screenZoneInput;
+    const orientation = screenOrientationInput;
     const ip = screenIpInput.trim() || '192.168.1.100';
+    const computedRes = orientation === '9:16' ? '1080x1920 (9:16)' : orientation === '4:3' ? '1024x768 (4:3)' : '1920x1080 (16:9)';
 
     setIsSavingScreen(true);
     try {
@@ -446,11 +453,13 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
         groupId: screenGroupIdInput,
         buildingId: bldId,
         zone: zone,
+        orientation: orientation,
         ipAddress: ip,
         status: editingScreen?.status || 'online',
         lastSeen: editingScreen?.lastSeen || Date.now(),
         approved: true,
-        resolution: editingScreen?.resolution || (zone === 'cabin' ? '1080x1920 (9:16)' : '1920x1080 (16:9)'),
+        resolution: computedRes,
+        assignedConfig: editingScreen?.assignedConfig,
       };
 
       // 1. Optimistic UI update
@@ -475,7 +484,7 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
       );
 
       // 3. Direct Firestore sync
-      await approveScreenFirestore(cleanId, scrName, screenGroupIdInput, bldId, zone);
+      await approveScreenFirestore(cleanId, scrName, screenGroupIdInput, bldId, zone, orientation, computedRes);
       await upsertScreenFirestore(updatedScreen);
 
       // 4. Background API sync
@@ -1488,11 +1497,36 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
                 <select
                   disabled={isSavingScreen}
                   value={screenZoneInput}
-                  onChange={(e) => setScreenZoneInput(e.target.value as 'cabin' | 'lobby')}
+                  onChange={(e) => {
+                    const newZ = e.target.value as 'cabin' | 'lobby';
+                    setScreenZoneInput(newZ);
+                    // Auto-adjust orientation suggestion when switching zone
+                    if (newZ === 'cabin' && screenOrientationInput === '16:9') {
+                      setScreenOrientationInput('9:16');
+                    } else if (newZ === 'lobby' && screenOrientationInput === '9:16') {
+                      setScreenOrientationInput('16:9');
+                    }
+                  }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-slate-200 text-xs outline-none focus:border-cyan-400 disabled:opacity-60 cursor-pointer"
                 >
-                  <option value="lobby">🏢 Ngoài Sảnh Thang (Màn hình ngang 16:9)</option>
-                  <option value="cabin">🛗 Trong Cabin Thang (Màn hình dọc 9:16)</option>
+                  <option value="lobby">🏢 Ngoài Sảnh Thang (Mặc định ngang 16:9)</option>
+                  <option value="cabin">🛗 Trong Cabin Thang (Mặc định dọc 9:16)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1">
+                  Hướng hiển thị màn hình (Orientation):
+                </label>
+                <select
+                  disabled={isSavingScreen}
+                  value={screenOrientationInput}
+                  onChange={(e) => setScreenOrientationInput(e.target.value as DisplayOrientation)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-cyan-300 text-xs font-semibold outline-none focus:border-cyan-400 disabled:opacity-60 cursor-pointer"
+                >
+                  <option value="16:9">🖥️ Màn hình Ngang Chuẩn (16:9 - Ngoài Sảnh / TV Treo)</option>
+                  <option value="9:16">📱 Màn hình Dọc Đứng (9:16 - Trong Cabin / Standee Dọc)</option>
+                  <option value="4:3">📺 Màn hình Tỷ Lệ 4:3</option>
                 </select>
               </div>
 

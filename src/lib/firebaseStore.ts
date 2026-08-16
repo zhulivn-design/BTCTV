@@ -8,7 +8,7 @@ import {
   collection,
   onSnapshot,
 } from './firebase';
-import { ScreenDevice, ScreenGroup, PublishHistoryItem, TVConfig } from '../types';
+import { ScreenDevice, ScreenGroup, PublishHistoryItem, TVConfig, DisplayOrientation } from '../types';
 
 // Helper to remove `undefined` values recursively before passing to Firestore
 export function sanitizeForFirestore(obj: any): any {
@@ -254,18 +254,24 @@ export async function approveScreenFirestore(
   name: string,
   groupId: string,
   buildingId: string,
-  zone: string
+  zone: string,
+  orientation?: DisplayOrientation,
+  resolution?: string
 ): Promise<void> {
-  const payload = {
+  const payload: any = {
     id: screenId,
     name,
     groupId,
     buildingId,
     zone,
     approved: true,
-    lastSeen: new Date().toISOString(),
+    lastSeen: Date.now(),
     status: 'online',
+    updatedAt: new Date().toISOString(),
   };
+
+  if (orientation) payload.orientation = orientation;
+  if (resolution) payload.resolution = resolution;
 
   try {
     await setDoc(doc(db, 'screens', screenId), sanitizeForFirestore(payload), { merge: true });
@@ -341,7 +347,23 @@ export async function publishConfigFirestore(
   // 1. Save config to Firestore directly with timeout
   await saveGlobalConfigFirestore(config);
 
-  // 2. Add history entry with 3s timeout
+  // 2. Direct real-time broadcast to each affected screen document
+  if (Array.isArray(affectedScreens) && affectedScreens.length > 0) {
+    const batchUpdates = affectedScreens.map((scr) =>
+      setDoc(
+        doc(db, 'screens', scr.id),
+        sanitizeForFirestore({
+          assignedConfig: config,
+          lastPublishedAt: Date.now(),
+          updatedAt: new Date().toISOString(),
+        }),
+        { merge: true }
+      ).catch((err) => console.warn(`Screen ${scr.id} publish notice:`, err))
+    );
+    await Promise.allSettled(batchUpdates);
+  }
+
+  // 3. Add history entry with 3s timeout
   try {
     const histId = 'hist-' + Date.now();
     await withTimeout(
@@ -353,9 +375,6 @@ export async function publishConfigFirestore(
   } catch (err) {
     console.warn('Direct Firestore publish history log notice:', err);
   }
-
-  // 3. API fallback in background (non-blocking)
-  // safeApiFetch removed
 }
 
 export async function logHistoryFirestore(item: PublishHistoryItem): Promise<void> {

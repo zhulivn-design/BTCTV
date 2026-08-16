@@ -108,6 +108,8 @@ export interface ScreenGroup {
   code: string; // e.g. "GRP_SANH_A"
   description?: string;
   buildingId?: string;
+  zone?: LocationZone;
+  orientation?: DisplayOrientation;
 }
 
 export interface ScreenDevice {
@@ -121,10 +123,12 @@ export interface ScreenDevice {
   lastSeen: number; // Timestamp ms
   ipAddress?: string;
   resolution?: string; // e.g. "1920x1080 (16:9)"
+  orientation?: DisplayOrientation; // '16:9' | '9:16' | '4:3'
   currentConfigVersion?: string;
   assignedConfig?: Partial<ZoneConfig>;
   approved?: boolean;
   requestedAt?: number;
+  lastPublishedAt?: number;
 }
 
 export type PublishTargetType = 'all' | 'groups' | 'screens' | 'single';

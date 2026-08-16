@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { TVConfig, SlideItem, TransitionEffect } from '../types';
+import { TVConfig, SlideItem, TransitionEffect, ScreenDevice } from '../types';
 import { BuiltInDashboards } from './BuiltInDashboards';
 import {
   Clock,
@@ -20,6 +20,7 @@ import {
 
 interface ElevatorSignagePlayerProps {
   config: TVConfig;
+  screenData?: ScreenDevice | null;
   onOpenSettings: () => void;
   reloadToken: number;
   isPaused: boolean;
@@ -33,6 +34,7 @@ interface ElevatorSignagePlayerProps {
 
 export const ElevatorSignagePlayer: React.FC<ElevatorSignagePlayerProps> = ({
   config,
+  screenData,
   onOpenSettings,
   reloadToken,
   isPaused,
@@ -47,16 +49,39 @@ export const ElevatorSignagePlayer: React.FC<ElevatorSignagePlayerProps> = ({
   const [slideTimeRemaining, setSlideTimeRemaining] = useState(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Resolve active building and zone config dynamically to ensure perfect binding and prevent cross-contamination
-  const activeBuilding = (config.buildings || []).find((b) => b.id === config.selectedBuildingId) || config.buildings?.[0];
+  // Check physical viewport aspect ratio
+  const [isNaturallyPortrait, setIsNaturallyPortrait] = useState(() => {
+    try {
+      return typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsNaturallyPortrait(window.innerHeight > window.innerWidth);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // 1. Resolve Effective Building & Zone based on this screen's assigned properties
+  const effectiveBuildingId = screenData?.buildingId || config.selectedBuildingId || config.buildings?.[0]?.id;
+  const effectiveZone = screenData?.zone || config.selectedZone || 'lobby';
+  const defaultGroupId = config.screenGroups?.[0]?.id || '';
+  const activeGroupId = screenGroupId || screenData?.groupId || config.selectedGroupId || defaultGroupId;
+
+  const activeBuilding = (config.buildings || []).find((b) => b.id === effectiveBuildingId) || config.buildings?.[0];
   const activeZoneConfig = activeBuilding
-    ? (config.selectedZone === 'cabin' ? activeBuilding.cabinConfig : activeBuilding.lobbyConfig)
+    ? (effectiveZone === 'cabin' ? activeBuilding.cabinConfig : activeBuilding.lobbyConfig)
     : null;
 
-  const defaultGroupId = config.screenGroups?.[0]?.id || '';
-  const activeGroupId = screenGroupId || config.selectedGroupId || defaultGroupId;
+  // 2. Resolve Active Slides
+  const currentSlidesSource = screenData?.assignedConfig?.slides && screenData.assignedConfig.slides.length > 0
+    ? screenData.assignedConfig.slides
+    : (activeZoneConfig?.slides || config.slides || []);
 
-  const currentSlidesSource = activeZoneConfig?.slides || config.slides || [];
   const targetedSlides = currentSlidesSource.filter((s) => {
     if (!s.enabled) return false;
     if (s.targetScope === 'groups') {
@@ -70,13 +95,50 @@ export const ElevatorSignagePlayer: React.FC<ElevatorSignagePlayerProps> = ({
     ? targetedSlides
     : currentSlidesSource.filter((s) => s.enabled !== false);
 
-  const displayOrientation = activeZoneConfig?.displayOrientation || config.displayOrientation || '16:9';
-  const organizationText = activeZoneConfig?.organizationText || config.organizationText || 'BAN QUẢN LÝ / CÔNG TY • BẢNG THÔNG BÁO NỘI BỘ';
-  const marqueeText = activeZoneConfig?.marqueeText || config.marqueeText || '';
-  const showMarquee = activeZoneConfig?.showMarquee !== false && config.showMarquee !== false;
-  const autoScrollEnabled = activeZoneConfig?.autoScrollEnabled !== false && config.autoScrollEnabled !== false;
-  const autoScrollSpeed = activeZoneConfig?.autoScrollSpeed || config.autoScrollSpeed || 3;
-  const slideshowEnabled = activeZoneConfig?.slideshowEnabled !== false && config.slideshowEnabled !== false;
+  // 3. Resolve Display Orientation (CRITICAL):
+  const displayOrientation =
+    screenData?.orientation ||
+    (screenData?.resolution?.includes('9:16') ? '9:16' : undefined) ||
+    (screenData?.resolution?.includes('4:3') ? '4:3' : undefined) ||
+    (screenData?.zone === 'cabin' ? (activeZoneConfig?.displayOrientation || '9:16') : undefined) ||
+    (screenData?.zone === 'lobby' ? (activeZoneConfig?.displayOrientation || '16:9') : undefined) ||
+    activeZoneConfig?.displayOrientation ||
+    config.displayOrientation ||
+    '16:9';
+
+  // 4. Resolve Header & Marquee Text
+  const organizationText =
+    screenData?.assignedConfig?.organizationText ||
+    activeZoneConfig?.organizationText ||
+    config.organizationText ||
+    'BAN QUẢN LÝ / CÔNG TY • BẢNG THÔNG BÁO NỘI BỘ';
+
+  const marqueeText =
+    screenData?.assignedConfig?.marqueeText ||
+    activeZoneConfig?.marqueeText ||
+    config.marqueeText ||
+    '';
+
+  const showMarquee =
+    screenData?.assignedConfig?.showMarquee !== undefined
+      ? screenData.assignedConfig.showMarquee
+      : (activeZoneConfig?.showMarquee !== false && config.showMarquee !== false);
+
+  const autoScrollEnabled =
+    screenData?.assignedConfig?.autoScrollEnabled !== undefined
+      ? screenData.assignedConfig.autoScrollEnabled
+      : (activeZoneConfig?.autoScrollEnabled !== false && config.autoScrollEnabled !== false);
+
+  const autoScrollSpeed =
+    screenData?.assignedConfig?.autoScrollSpeed ||
+    activeZoneConfig?.autoScrollSpeed ||
+    config.autoScrollSpeed ||
+    3;
+
+  const slideshowEnabled =
+    screenData?.assignedConfig?.slideshowEnabled !== undefined
+      ? screenData.assignedConfig.slideshowEnabled
+      : (activeZoneConfig?.slideshowEnabled !== false && config.slideshowEnabled !== false);
 
   // Safe index bounds
   const safeSlideIndex =
@@ -254,9 +316,9 @@ export const ElevatorSignagePlayer: React.FC<ElevatorSignagePlayerProps> = ({
   // Orientation container styling
   const orientationStyle =
     displayOrientation === '9:16'
-      ? 'max-w-[540px] h-[960px] aspect-[9/16] my-auto shadow-2xl rounded-3xl border-4 border-slate-800'
+      ? (isNaturallyPortrait ? 'w-full h-full' : 'w-full max-w-[540px] h-[960px] max-h-[98vh] aspect-[9/16] my-auto shadow-2xl rounded-3xl border-4 border-slate-800')
       : displayOrientation === '4:3'
-      ? 'max-w-[1024px] aspect-[4/3] my-auto shadow-2xl rounded-2xl border-4 border-slate-800'
+      ? 'w-full max-w-[1024px] aspect-[4/3] my-auto shadow-2xl rounded-2xl border-4 border-slate-800'
       : 'w-full h-full';
 
   return (
