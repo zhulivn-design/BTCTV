@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { ShieldAlert, Monitor, Wifi, Radio, Clock, Copy, Check, KeyRound, X, Sparkles, Lock } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState } from 'react';
+import { Monitor, Clock, Copy, Check } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { approveScreenFirestore } from '../lib/firebaseStore';
+import { getSingleScreenFirestore } from '../lib/firebaseStore';
 
 interface DeviceApprovalPendingProps {
   screenId: string;
@@ -14,117 +13,38 @@ interface DeviceApprovalPendingProps {
 
 export const DeviceApprovalPending: React.FC<DeviceApprovalPendingProps> = ({
   screenId,
-  ipAddress,
-  onRefresh,
   onApproved,
   onOpenAdmin,
 }) => {
   const [copied, setCopied] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime] = useState(new Date());
   const [isChecking, setIsChecking] = useState(false);
   const [checkMessage, setCheckMessage] = useState<string | null>(null);
 
-  // Admin Quick PIN Activation Modal State
-  const [showPinModal, setShowPinModal] = useState(false);
-  const [pinInput, setPinInput] = useState('');
-  const [pinError, setPinError] = useState('');
-  const [isPinSubmitting, setIsPinSubmitting] = useState(false);
-
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Automated polling removed to reduce server load
-  
   const handleManualCheck = async () => {
     setIsChecking(true);
     setCheckMessage('Đang kiểm tra kết nối với máy chủ...');
     try {
-      const resp = await fetch('/api/screens/heartbeat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          screenId,
-          name: `Màn hình ${screenId}`,
-          buildingId: 'building-a',
-          zone: 'lobby',
-        }),
-      });
-
-      const contentType = resp.headers.get('content-type');
-      if (resp.ok && contentType && contentType.includes('application/json')) {
-        const data = await resp.json();
-        if (data.ok && data.approved === true) {
-          setCheckMessage('🎉 Màn hình đã được phê duyệt! Đang chuyển hướng...');
-          sessionStorage.setItem('android_tv_approved', 'true');
-          localStorage.setItem('android_tv_approved', 'true');
-          setTimeout(() => {
-            if (onApproved) {
-              onApproved();
-            } else {
-              window.location.reload();
-            }
-          }, 500);
-          return;
-        }
+      const screenData = await getSingleScreenFirestore(screenId);
+      
+      if (screenData && screenData.approved === true) {
+        setCheckMessage('🎉 Màn hình đã được phê duyệt! Đang chuyển hướng...');
+        sessionStorage.setItem('android_tv_approved', 'true');
+        localStorage.setItem('android_tv_approved', 'true');
+        setTimeout(() => {
+          if (onApproved) {
+            onApproved();
+          } else {
+            window.location.reload();
+          }
+        }, 500);
+      } else {
+        setCheckMessage(`⏳ Màn hình ${screenId} chưa được phê duyệt. Vui lòng liên hệ Quản trị viên.`);
       }
-
-      setCheckMessage(`⏳ Màn hình ${screenId} chưa được phê duyệt. Bạn có thể nhấn 'Kích Hoạt PIN Admin' bên dưới để kích hoạt trực tiếp.`);
     } catch (e) {
       setCheckMessage('❌ Không thể kết nối với máy chủ. Vui lòng kiểm tra lại mạng.');
     } finally {
       setIsChecking(false);
-    }
-  };
-
-  const handleDirectPinActivate = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    setPinError('');
-    const cleanPin = pinInput.trim();
-
-    // No default PINs
-    if (cleanPin !== '888888') {
-      setPinError('Mật khẩu Admin không đúng.');
-      return;
-    }
-
-    setIsPinSubmitting(true);
-    try {
-      // 1. Approve via Express API
-      await fetch('/api/screens/approve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          screenId,
-          name: `Màn hình ${screenId}`,
-          buildingId: 'building-a',
-          zone: 'lobby',
-        }),
-      });
-
-      // 2. Sync to Firestore
-      approveScreenFirestore(screenId, `Màn hình ${screenId}`, 'grp-8152', 'building-a', 'lobby').catch(() => {});
-
-      // 3. Mark session approved
-      sessionStorage.setItem('android_tv_approved', 'true');
-      localStorage.setItem('android_tv_approved', 'true');
-
-      setCheckMessage('🎉 Kích hoạt thành công! Đang chuyển hướng đến màn hình trình chiếu...');
-      setShowPinModal(false);
-
-      setTimeout(() => {
-        if (onApproved) {
-          onApproved();
-        } else {
-          window.location.reload();
-        }
-      }, 500);
-    } catch (err) {
-      console.error('Lỗi kích hoạt PIN:', err);
-      setPinError('Có lỗi xảy ra khi gửi yêu cầu kích hoạt.');
-    } finally {
-      setIsPinSubmitting(false);
     }
   };
 
@@ -143,7 +63,7 @@ export const DeviceApprovalPending: React.FC<DeviceApprovalPendingProps> = ({
       {/* Main container */}
       <div className="relative w-full max-w-2xl px-6 flex flex-col items-center text-center space-y-6">
         
-        {/* Animated Radar Radar Icon */}
+        {/* Animated Radar Icon */}
         <div className="relative flex items-center justify-center w-20 h-20">
           <div className="absolute inset-0 rounded-full bg-cyan-500/10 animate-ping opacity-75" />
           <div className="absolute inset-2 rounded-full bg-cyan-500/20 animate-pulse" />
@@ -161,7 +81,7 @@ export const DeviceApprovalPending: React.FC<DeviceApprovalPendingProps> = ({
             Màn Hình Trình Chiếu Nội Dung
           </h1>
           <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-            Thiết bị này cần được phê duyệt trước khi hiển thị nội dung. Sau khi liên hệ Quản trị viên kích hoạt, vui lòng nhấn 'Kiểm Tra' để truy cập.
+            Thiết bị này cần được phê duyệt trước khi hiển thị nội dung. Sau khi Quản trị viên kích hoạt, vui lòng nhấn 'Kiểm Tra' để truy cập.
           </p>
         </div>
 
@@ -180,6 +100,7 @@ export const DeviceApprovalPending: React.FC<DeviceApprovalPendingProps> = ({
               </span>
               
               <button
+               type="button"
                 onClick={handleCopy}
                 className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
                 title="Sao chép mã"
@@ -191,22 +112,11 @@ export const DeviceApprovalPending: React.FC<DeviceApprovalPendingProps> = ({
 
           <div className="flex flex-col items-center gap-2">
             <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">
-              QUÉT QR ĐỂ TỰ ĐỘNG PHÊ DUYỆT
+              QUÉT QR ĐỂ CHUYỂN ĐẾN TRANG QUẢN TRỊ
             </span>
             <div className="p-2 bg-white rounded-xl shadow-lg border border-slate-700">
               <QRCodeSVG value={`${window.location.origin}/?admin=true&approve=${screenId}`} size={120} />
             </div>
-          </div>
-
-          {/* Contact Hotline */}
-          <div className="bg-slate-950/80 border border-cyan-500/30 p-3 rounded-xl text-center text-xs text-slate-300 leading-relaxed space-y-1">
-            <p className="font-bold text-cyan-300">📞 Hỗ Trợ Kích Hoạt Nhanh Qua Hotline</p>
-            <p className="text-lg font-mono font-black text-amber-400 tracking-wider">
-              0354.489.489
-            </p>
-            <p className="text-[10px] text-slate-400">
-              Đọc mã <span className="text-cyan-400 font-mono font-bold">{screenId}</span> cho Quản trị viên để kích hoạt từ xa.
-            </p>
           </div>
 
           {checkMessage && (
@@ -217,24 +127,14 @@ export const DeviceApprovalPending: React.FC<DeviceApprovalPendingProps> = ({
 
           {/* Action buttons grid */}
           <div className="pt-2 border-t border-slate-800/60 flex flex-col gap-2 w-full">
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={handleManualCheck}
-                disabled={isChecking}
-                className="w-full px-3 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs cursor-pointer shadow-lg shadow-cyan-600/20 flex items-center justify-center gap-1.5 transition-all active:scale-95"
-              >
-                🔍 Kiểm Tra
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowPinModal(true)}
-                className="w-full px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-1.5 transition-all active:scale-95"
-              >
-                🔑 Kích Hoạt PIN
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleManualCheck}
+              disabled={isChecking}
+              className="w-full px-3 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-sm cursor-pointer shadow-lg shadow-cyan-600/20 flex items-center justify-center gap-1.5 transition-all active:scale-95"
+            >
+              {isChecking ? '⏳ Đang kiểm tra...' : '🔍 Kiểm Tra Trạng Thái'}
+            </button>
 
             <button
               type="button"
@@ -263,80 +163,6 @@ export const DeviceApprovalPending: React.FC<DeviceApprovalPendingProps> = ({
         </div>
 
       </div>
-
-      {/* ADMIN PIN ACTIVATION MODAL */}
-      <AnimatePresence>
-        {showPinModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl relative space-y-4"
-            >
-              <button
-                onClick={() => setShowPinModal(false)}
-                className="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
-                <div className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-400 border border-emerald-500/20">
-                  <KeyRound className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-white">Kích Hoạt Trực Tiếp Màn Hình</h3>
-                  <p className="text-xs text-slate-400">Nhập mật khẩu Admin để phê duyệt thiết bị <span className="font-mono text-cyan-400">{screenId}</span></p>
-                </div>
-              </div>
-
-              <form onSubmit={handleDirectPinActivate} className="space-y-4 pt-2">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Mật Khẩu Quản Trị Viên (Admin PIN):
-                  </label>
-                  <input
-                    type="password"
-                    value={pinInput}
-                    onChange={(e) => setPinInput(e.target.value)}
-                    placeholder="Nhập PIN Admin"
-                    autoFocus
-                    className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-lg text-center tracking-widest focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <p className="text-[11px] text-slate-400 mt-1 text-center">
-                    (Liên hệ Quản trị viên để lấy PIN)
-                  </p>
-                </div>
-
-                {pinError && (
-                  <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-300 font-medium">
-                    {pinError}
-                  </div>
-                )}
-
-                <div className="flex gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowPinModal(false)}
-                    className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl cursor-pointer transition-all"
-                  >
-                    Hủy Bỏ
-                  </button>
-
-                  <button
-                    type="submit"
-                    disabled={isPinSubmitting}
-                    className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl cursor-pointer transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-1.5"
-                  >
-                    {isPinSubmitting ? 'Đang kích hoạt...' : '⚡ Kích Hoạt Ngay'}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

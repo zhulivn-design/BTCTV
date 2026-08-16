@@ -238,30 +238,6 @@ export default function App() {
     }).catch(() => {});
   }, [screenId, screenGroupId, isDeviceApproved]); // Removed config dependencies
 
-  // Device heartbeat effect: lightweight HTTP ping to Express server without writing to Firestore
-  useEffect(() => {
-    const performHeartbeat = async () => {
-      try {
-        fetch('/api/screens/heartbeat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            screenId,
-            name: `Màn hình ${screenId}`,
-            groupId: screenGroupId,
-            buildingId: config.selectedBuildingId,
-            zone: config.selectedZone,
-          }),
-        }).catch(() => {});
-      } catch (err) {
-        // Silently catch network errors
-      }
-    };
-
-    performHeartbeat();
-    const interval = setInterval(performHeartbeat, isDeviceApproved ? 30000 : 10000);
-    return () => clearInterval(interval);
-  }, [screenId, screenGroupId, config.selectedBuildingId, config.selectedZone, isDeviceApproved]);
 
   // Save config changes to localStorage & Firestore
   const handleSaveConfig = async (newConfig: TVConfig) => {
