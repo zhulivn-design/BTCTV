@@ -28,14 +28,21 @@ interface BuildingManagerProps {
   formData: TVConfig;
   setFormData: React.Dispatch<React.SetStateAction<TVConfig>>;
   onApplyBuildingZone: (buildingId: string, zone: LocationZone, groupId?: string) => void;
+  screenId?: string;
 }
 
 export const BuildingManager: React.FC<BuildingManagerProps> = ({
   formData,
   setFormData,
   onApplyBuildingZone,
+  screenId,
 }) => {
   const { toast } = useToast();
+
+  const currentScreenId = screenId || 
+    (typeof window !== 'undefined' ? (sessionStorage.getItem('android_tv_screen_id') || localStorage.getItem('android_tv_screen_id')) : '') || 
+    'SCR-LOBBY-A1';
+  const currentScreenName = `Màn hình ${currentScreenId}`;
 
   const [selectedBldId, setSelectedBldId] = useState<string>(
     formData.selectedBuildingId || formData.buildings?.[0]?.id || 'building-a'
@@ -409,9 +416,13 @@ export const BuildingManager: React.FC<BuildingManagerProps> = ({
               <Monitor className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 bg-cyan-950/80 border border-cyan-800/60 px-2 py-0.5 rounded-full">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 bg-cyan-950/80 border border-cyan-800/60 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 shadow-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   Màn Hình Này Đang Phát Thực Tế
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-slate-900 border border-cyan-500/40 text-cyan-300 font-mono font-bold text-xs tracking-wider shadow-sm">
+                  Mã: {currentScreenId}
                 </span>
                 {appliedNotice && (
                   <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800 px-2 py-0.5 rounded-full animate-bounce">
@@ -419,10 +430,14 @@ export const BuildingManager: React.FC<BuildingManagerProps> = ({
                   </span>
                 )}
               </div>
-              <div className="text-xs font-semibold text-slate-300 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <div className="text-xs font-semibold text-slate-300 mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span>Tên thiết bị: <strong className="text-white font-bold">{currentScreenName}</strong></span>
+                <span className="text-slate-600">•</span>
+                <span>Mã thiết bị: <strong className="text-cyan-400 font-mono font-bold">{currentScreenId}</strong></span>
+                <span className="text-slate-600">•</span>
                 <span>Trụ sở: <strong className="text-white font-bold">{currentActiveBuilding?.name || 'Chưa chọn'}</strong></span>
                 <span className="text-slate-600">•</span>
-                <span>Vị trí: <strong className="text-cyan-400 font-bold">{formData.selectedZone === 'cabin' ? 'Trong Cabin Thang (Màn dọc)' : 'Ngoài Sảnh Thang (Màn ngang)'}</strong></span>
+                <span>Vị trí: <strong className="text-cyan-400 font-bold">{formData.selectedZone === 'cabin' ? 'Trong Cabin Thang (Màn dọc 9:16)' : 'Ngoài Sảnh Thang (Màn ngang 16:9)'}</strong></span>
               </div>
             </div>
           </div>

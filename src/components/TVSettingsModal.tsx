@@ -51,6 +51,7 @@ interface TVSettingsModalProps {
   config: TVConfig;
   onSaveConfig: (newConfig: TVConfig) => void;
   onClose: () => void;
+  screenId?: string;
 }
 
 // Helper to hash password using SHA-256 for client-side storage & comparison
@@ -75,6 +76,7 @@ export const TVSettingsModal: React.FC<TVSettingsModalProps> = ({
   config,
   onSaveConfig,
   onClose,
+  screenId,
 }) => {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
@@ -914,7 +916,7 @@ export const TVSettingsModal: React.FC<TVSettingsModalProps> = ({
             {/* Modal Body Container */}
             <div className="p-6 overflow-y-auto space-y-6 flex-1">
               {activeTab === 'dashboard' && (
-                <DashboardView config={config} />
+                <DashboardView config={config} screenId={screenId} />
               )}
               {activeTab === 'groups' && (
                 <ScreenGroupManager
@@ -930,6 +932,7 @@ export const TVSettingsModal: React.FC<TVSettingsModalProps> = ({
                     formData={formData}
                     setFormData={setFormData}
                     onApplyBuildingZone={handleApplyBuildingZone}
+                    screenId={screenId}
                   />
                 ) : (
                   renderRestrictedWarning('Cấu Hình Tòa Nhà & Vị Trí')

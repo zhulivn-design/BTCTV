@@ -530,6 +530,7 @@ export default function App() {
           config={config}
           onSaveConfig={handleSaveConfig}
           onClose={() => setShowSettings(false)}
+          screenId={screenId}
         />
       )}
 

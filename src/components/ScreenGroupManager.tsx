@@ -689,13 +689,13 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
             </div>
 
             <button
-              onClick={fetchServerState}
+              onClick={handleDirectFirestoreRefresh}
               disabled={isRefreshing}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all text-xs flex items-center gap-1.5"
-              title="Cập nhật trạng thái"
+              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-slate-200 border border-slate-700 transition-all text-xs font-semibold flex items-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
+              title="Đồng bộ trực tiếp với Database Firestore để làm mới toàn bộ thiết bị và nhóm"
             >
               <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span className="hidden md:inline">Làm mới</span>
+              <span>{isRefreshing ? 'Đang tải...' : 'Làm mới'}</span>
             </button>
           </div>
         </div>
@@ -1043,18 +1043,6 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
             </div>
 
             <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-              {/* Nút Làm Mới Dữ Liệu từ Database */}
-              <button
-                type="button"
-                onClick={handleDirectFirestoreRefresh}
-                disabled={isRefreshing}
-                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-slate-200 font-bold text-xs flex items-center gap-2 cursor-pointer border border-slate-700 shadow-sm transition-all disabled:opacity-50"
-                title="Đồng bộ trực tiếp với Database Firestore để loại bỏ màn hình rác / ghost devices"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-cyan-400' : 'text-slate-400'}`} />
-                <span>{isRefreshing ? 'Đang Tải...' : 'Làm Mới Dữ Liệu'}</span>
-              </button>
-
               {user.role === 'admin' && (
                 <>
                   {deviceSubTab === 'approved' && (
@@ -1200,29 +1188,37 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
           {/* SUBTAB 2: NHÓM */}
           {deviceSubTab === 'groups' && (
             <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 bg-slate-900/80 p-3.5 rounded-xl border border-slate-800">
-                <div>
-                  <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <Layers className="w-4 h-4 text-cyan-400" />
-                    Quản Lý Nhóm Màn Hình ({groups.length} nhóm)
-                  </h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Phân nhóm màn hình theo Tòa nhà & Vị trí để phát nội dung tập trung.
-                  </p>
-                </div>
-
-                {user.role === 'admin' && (
-                  <button
-                    type="button"
-                    onClick={() => handleOpenAddGroup()}
-                    className="px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs inline-flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 cursor-pointer transition-all"
-                  >
-                    <Plus className="w-4 h-4" /> Thêm Nhóm Màn Hình Mới
-                  </button>
-                )}
+              <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800">
+                <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 text-cyan-400" />
+                  Quản Lý Nhóm Màn Hình ({groups.length} nhóm)
+                </h4>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Phân nhóm màn hình theo Tòa nhà & Vị trí để phát nội dung tập trung.
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {groups.length === 0 ? (
+                <div className="p-12 text-center text-slate-500 space-y-4 rounded-2xl border border-slate-800 bg-slate-900">
+                  <Layers className="w-12 h-12 text-slate-700 mx-auto mb-1" />
+                  <div>
+                    <p className="font-bold text-slate-400 text-sm">Chưa có nhóm màn hình nào</p>
+                    <p className="text-xs text-slate-600 mt-1 max-w-md mx-auto">
+                      Tạo nhóm để phân loại và quản lý các màn hình theo tòa nhà hoặc vị trí phát.
+                    </p>
+                  </div>
+                  {user.role === 'admin' && (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenAddGroup()}
+                      className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs inline-flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" /> Tạo Nhóm Đầu Tiên
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {groups.map((grp) => {
                   const count = screens.filter((s) => s.groupId === grp.id).length;
                   const bld = (formData.buildings || []).find((b) => b.id === grp.buildingId);
@@ -1274,6 +1270,7 @@ export const ScreenGroupManager: React.FC<ScreenGroupManagerProps> = ({
                   );
                 })}
               </div>
+            )}
             </div>
           )}
         </div>
