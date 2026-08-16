@@ -9,6 +9,16 @@ import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
 // Initialize Firebase Admin
+let firebaseConfigData: any = {};
+try {
+  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  if (fs.existsSync(configPath)) {
+    firebaseConfigData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  }
+} catch (e) {
+  console.warn("Could not read firebase-applet-config.json:", e);
+}
+
 let credential;
 try {
   if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
@@ -20,23 +30,38 @@ try {
       credential = cert(JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8')));
       console.log("Using credentials from serviceAccountKey.json file.");
     } else {
-      console.warn("No Firebase credentials found. Firebase Admin will initialize without explicit credentials.");
+      console.log("Initializing Firebase Admin with application default / config parameters.");
     }
   }
 } catch (err) {
   console.error("Error parsing Firebase credentials:", err);
 }
 
+const targetProjectId = firebaseConfigData.projectId || process.env.FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT;
+const targetDatabaseId = firebaseConfigData.firestoreDatabaseId || process.env.FIRESTORE_DATABASE_ID || '(default)';
+
+let adminApp: any;
 try {
-  initializeApp(credential ? { credential } : undefined);
+  const initOptions: any = {};
+  if (credential) {
+    initOptions.credential = credential;
+  }
+  if (targetProjectId) {
+    initOptions.projectId = targetProjectId;
+  }
+  adminApp = initializeApp(Object.keys(initOptions).length > 0 ? initOptions : undefined);
 } catch (err) {
-  console.error("Error initializing Firebase Admin:", err);
+  console.error("Error initializing Firebase Admin app:", err);
 }
 
 let db: FirebaseFirestore.Firestore;
 try {
-  db = getFirestore();
-  console.log("Firebase Admin initialized successfully.");
+  if (targetDatabaseId && targetDatabaseId !== '(default)') {
+    db = getFirestore(adminApp, targetDatabaseId);
+  } else {
+    db = getFirestore(adminApp);
+  }
+  console.log(`Firebase Admin Firestore initialized successfully (Database: ${targetDatabaseId}, Project: ${targetProjectId || 'default'}).`);
 } catch (err) {
   console.error("Failed to get Firestore instance. Check Firebase initialization:", err);
 }
@@ -141,11 +166,11 @@ function recordFirestoreUsage(
 }
 
 function handleFirestoreError(err: any, actionName: string, operation: 'read' | 'write' | 'delete' = 'read', collectionName: string = 'system') {
-  console.error(`[Firestore Error - ${actionName} - ${collectionName}]:`, err);
-  if (err?.code === 5) {
-    console.warn(`[Firestore Info] Collection ${collectionName} not found, treating as empty.`);
+  if (err?.code === 5 || err?.code === 'not-found' || err?.message?.includes('NOT_FOUND') || err?.message?.includes('5 NOT_FOUND')) {
+    console.warn(`[Firestore Info] ${actionName} on ${collectionName}: not found or empty, using local cache.`);
     return;
   }
+  console.error(`[Firestore Error - ${actionName} - ${collectionName}]:`, err?.message || err);
   if (
     err?.code === 'resource-exhausted' ||
     err?.code === 8 ||
@@ -174,7 +199,7 @@ function sanitizeForFirestore(obj: any): any {
 }
 
 async function loadScreensFromFirestore() {
-  if (isFirestoreQuotaExhausted) return;
+  if (!db || isFirestoreQuotaExhausted) return;
   try {
     const snap = await db.collection('screens').get();
     recordFirestoreUsage('read', 'screens', undefined, 'success', undefined, Math.max(1, snap.size));
@@ -204,7 +229,7 @@ async function loadScreensFromFirestore() {
 }
 
 async function syncScreenToFirestore(screen: ScreenDeviceData) {
-  if (isFirestoreQuotaExhausted) return;
+  if (!db || isFirestoreQuotaExhausted) return;
   try {
     await db.collection('screens').doc(screen.id).set(sanitizeForFirestore(screen), { merge: true });
     recordFirestoreUsage('write', 'screens', screen.id);
@@ -214,7 +239,7 @@ async function syncScreenToFirestore(screen: ScreenDeviceData) {
 }
 
 async function removeScreenFromFirestore(screenId: string) {
-  if (isFirestoreQuotaExhausted) return;
+  if (!db || isFirestoreQuotaExhausted) return;
   try {
     await db.collection('screens').doc(screenId).delete();
     recordFirestoreUsage('delete', 'screens', screenId);
@@ -261,7 +286,7 @@ const USERS_FILE = path.join(process.cwd(), "users.json");
 let usersStore: UserAccount[] = [];
 
 async function syncUserToFirestore(user: UserAccount) {
-  if (isFirestoreQuotaExhausted) return;
+  if (!db || isFirestoreQuotaExhausted) return;
   console.log(`[DEBUG - syncUserToFirestore]: Syncing user ${user.email}...`);
   try {
     const docId = user.email.toLowerCase().trim();
@@ -282,7 +307,7 @@ async function syncUserToFirestore(user: UserAccount) {
 }
 
 async function loadUsersFromFirestore() {
-  if (isFirestoreQuotaExhausted) return;
+  if (!db || isFirestoreQuotaExhausted) return;
   console.log("Starting loadUsersFromFirestore...");
   try {
     const snap = await db.collection('users').get();
@@ -385,7 +410,7 @@ function saveMedia() {
 }
 
 async function syncMediaToFirestore(mediaObj: any) {
-  if (isFirestoreQuotaExhausted) return;
+  if (!db || isFirestoreQuotaExhausted) return;
   try {
     await db.collection('media').doc(mediaObj.id).set(sanitizeForFirestore(mediaObj), { merge: true });
     recordFirestoreUsage('write', 'media', mediaObj.id);
@@ -395,7 +420,7 @@ async function syncMediaToFirestore(mediaObj: any) {
 }
 
 async function deleteMediaFromFirestore(mediaId: string) {
-  if (isFirestoreQuotaExhausted) return;
+  if (!db || isFirestoreQuotaExhausted) return;
   try {
     await db.collection('media').doc(mediaId).delete();
     recordFirestoreUsage('delete', 'media', mediaId);
@@ -405,7 +430,7 @@ async function deleteMediaFromFirestore(mediaId: string) {
 }
 
 async function loadMediaFromFirestore() {
-  if (isFirestoreQuotaExhausted) return;
+  if (!db || isFirestoreQuotaExhausted) return;
   try {
     const snap = await db.collection('media').get();
     recordFirestoreUsage('read', 'media', undefined, 'success', undefined, Math.max(1, snap.size));
@@ -490,7 +515,7 @@ function saveGroups() {
 loadGroups();
 
 async function syncGlobalConfigToFirestore(config: any) {
-  if (isFirestoreQuotaExhausted || !config) return;
+  if (!db || isFirestoreQuotaExhausted || !config) return;
   console.log(`[DEBUG - syncGlobalConfigToFirestore]: Syncing global config...`);
   try {
     const generalConfig = { ...config, buildings: [], slides: [] };
@@ -510,7 +535,7 @@ async function syncGlobalConfigToFirestore(config: any) {
 }
 
 async function loadGroupsFromFirestore() {
-  if (isFirestoreQuotaExhausted) return;
+  if (!db || isFirestoreQuotaExhausted) return;
   console.log("Starting loadGroupsFromFirestore...");
   try {
     const snap = await db.collection('groups').get();
@@ -540,7 +565,7 @@ async function loadGroupsFromFirestore() {
 }
 
 async function syncGroupToFirestore(group: ScreenGroupData) {
-  if (isFirestoreQuotaExhausted) return;
+  if (!db || isFirestoreQuotaExhausted) return;
   console.log(`[DEBUG - syncGroupToFirestore]: Syncing group ${group.id}...`);
   try {
     await db.collection('groups').doc(group.id).set(sanitizeForFirestore(group), { merge: true });
@@ -553,7 +578,7 @@ async function syncGroupToFirestore(group: ScreenGroupData) {
 }
 
 async function deleteGroupFromFirestore(groupId: string) {
-  if (isFirestoreQuotaExhausted) return;
+  if (!db || isFirestoreQuotaExhausted) return;
   try {
     await db.collection('groups').doc(groupId).delete();
     recordFirestoreUsage('delete', 'groups', groupId);
@@ -614,7 +639,7 @@ async function loadGlobalConfig() {
     }
   }
 
-  if (isFirestoreQuotaExhausted) {
+  if (!db || isFirestoreQuotaExhausted) {
     globalTvConfig = localConfig || { sleepMode: { enabled: false }, buildings: [], slides: [] };
     return;
   }
@@ -727,7 +752,7 @@ app.post("/api/config", async (req, res) => {
 
   saveGlobalConfig(config);
 
-  if (!isFirestoreQuotaExhausted) {
+  if (db && !isFirestoreQuotaExhausted) {
     // Sync to Firestore split documents asynchronously in the background so it is resilient to quota exhaustion
     (async () => {
       try {
@@ -756,21 +781,25 @@ app.get("/api/debug/system-status", async (req, res) => {
   let fsGroupCount = 0;
   let adminPwdType = 'unknown';
 
-  try {
-    const uSnap = await db.collection('users').get();
-    fsUserCount = uSnap.size;
-    uSnap.forEach(d => {
-      if (d.id === 'admin') {
-        const data = d.data();
-        const pwd = data.passwordHash || data.password || '';
-        adminPwdType = `Custom password set (Hash: ${pwd.substring(0, 8)}...)`;
-      }
-    });
+  if (db) {
+    try {
+      const uSnap = await db.collection('users').get();
+      fsUserCount = uSnap.size;
+      uSnap.forEach(d => {
+        if (d.id === 'admin') {
+          const data = d.data();
+          const pwd = data.passwordHash || data.password || '';
+          adminPwdType = `Custom password set (Hash: ${pwd.substring(0, 8)}...)`;
+        }
+      });
 
-    const gSnap = await db.collection('groups').get();
-    fsGroupCount = gSnap.size;
-  } catch (e: any) {
-    adminPwdType = `Error reading Firestore: ${e.message}`;
+      const gSnap = await db.collection('groups').get();
+      fsGroupCount = gSnap.size;
+    } catch (e: any) {
+      adminPwdType = `Error reading Firestore: ${e.message}`;
+    }
+  } else {
+    adminPwdType = 'Firestore instance not connected';
   }
 
   res.json({
